@@ -1,0 +1,17 @@
+**/bin/
+**/obj/
+.vs/
+artifacts/
+*.user
+.tools/
+.gradle-local/
+.dotnet-local/
+Unity_Connect_Android/.gradle/
+Unity_Connect_Android/**/build/
+.dotnet-cli/
+**/.idea/
+scrcpy/
+**/local.properties
+*.jks
+*.keystore
+.interop-ready

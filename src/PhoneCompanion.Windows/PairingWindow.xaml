@@ -1,0 +1,37 @@
+<Window x:Class="PhoneCompanion.Windows.PairingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Connect your phone" Width="410" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen" Background="{DynamicResource WindowBackground}"
+        Foreground="{DynamicResource PrimaryText}" FontFamily="Segoe UI" FontSize="13">
+    <Grid Margin="26">
+        <StackPanel>
+            <TextBlock Text="Connect your phone" FontSize="25" FontWeight="SemiBold" />
+            <TextBlock Text="Open Unity Connect on your phone and tap Start pairing."
+                       Foreground="{DynamicResource SecondaryText}" Margin="0,6,0,22" TextWrapping="Wrap" />
+
+            <StackPanel x:Name="ConnectPanel">
+                <TextBlock Text="Wi-Fi address shown on your phone" FontWeight="SemiBold" Margin="0,0,0,7" />
+                <TextBox x:Name="Endpoint" Height="36" Padding="9,6" FontSize="14" VerticalContentAlignment="Center"
+                         AutomationProperties.Name="Phone Wi-Fi address" />
+                <Button x:Name="WifiButton" Content="Connect over Wi-Fi" Height="38" Margin="0,11,0,8"
+                        Background="{DynamicResource Accent}" Foreground="{DynamicResource AccentText}" Click="OnWifi" />
+                <Button x:Name="BluetoothButton" Content="Find with Bluetooth" Height="38" Click="OnBluetooth" />
+            </StackPanel>
+
+            <StackPanel x:Name="CodePanel" Visibility="Collapsed" HorizontalAlignment="Center">
+                <TextBlock Text="Confirm this code on both devices" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                <TextBlock x:Name="Code" FontSize="43" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,10" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button Content="Cancel" Width="105" Height="37" Margin="0,0,8,0" Click="OnDecline" />
+                    <Button Content="Codes match" Width="125" Height="37" Click="OnApprove"
+                            Background="{DynamicResource Accent}" Foreground="{DynamicResource AccentText}" />
+                </StackPanel>
+            </StackPanel>
+            <TextBlock x:Name="Status" Foreground="{DynamicResource SecondaryText}" Margin="0,16,0,0"
+                       TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+            <Button x:Name="ForgetButton" Content="Forget paired phone" Margin="0,18,0,0" Height="32"
+                    Visibility="Collapsed" Click="OnForget" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -1,0 +1,170 @@
+using System;
+using System.ComponentModel;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using System.Windows.Threading;
+using PhoneCompanion.Core.Models;
+using PhoneCompanion.Core.State;
+using PhoneCompanion.Windows.Clipboard;
+
+namespace PhoneCompanion.Windows.ViewModels;
+
+public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
+{
+    private readonly PhoneStateManager _manager;
+    private readonly Dispatcher _dispatcher;
+    private readonly ClipboardSyncCoordinator? _clipboard;
+    private PhoneState _state;
+    private bool _busy;
+    private bool _disposed;
+    private string? _commandNotice;
+    public PhoneViewModel(PhoneStateManager manager, Dispatcher dispatcher, ClipboardSyncCoordinator? clipboard = null)
+    {
+        _manager = manager; _dispatcher = dispatcher; _clipboard = clipboard; _state = manager.Current;
+        Previous = new AsyncCommand(() => SendAsync(MediaCommand.PreviousTrack), () => CanControl && _state.Media?.Capabilities.PreviousTrack == true);
+        PlayPause = new AsyncCommand(() => SendAsync(MediaCommand.PlayPause), () => CanControl && _state.Media?.Capabilities.PlayPause == true);
+        Next = new AsyncCommand(() => SendAsync(MediaCommand.NextTrack), () => CanControl && _state.Media?.Capabilities.NextTrack == true);
+        ToggleDndRule = new AsyncCommand(ToggleDndRuleAsync, () => !_busy && CanControlDndRule);
+        ToggleClipboard = new AsyncCommand(ToggleClipboardAsync, () => !_busy && _clipboard is not null);
+        manager.StateChanged += OnStateChanged;
+        if (_clipboard is not null)
+        {
+            _clipboard.Changed += OnClipboardChanged;
+            _clipboard.Notice += OnClipboardNotice;
+        }
+    }
+    public event PropertyChangedEventHandler? PropertyChanged;
+    public AsyncCommand Previous { get; }
+    public AsyncCommand PlayPause { get; }
+    public AsyncCommand Next { get; }
+    public AsyncCommand ToggleDndRule { get; }
+    public AsyncCommand ToggleClipboard { get; }
+    public bool IsConnected => _state.Connection == ConnectionState.Connected;
+    public bool IsDemo => _state.IsDemo;
+    public bool HasMedia => _state.Media?.IsPlaying == true;
+    private bool CanControl => !_busy && IsConnected;
+    public string Status => _state.Connection switch
+    {
+        ConnectionState.Connecting => "Connecting", ConnectionState.Connected when IsDemo => "Sample",
+        ConnectionState.Connected => "Connected", _ => "Not connected"
+    };
+    public string BatteryText => _state.Battery is { } b ? $"{b.Level}% · {(b.Charging ? "Charging" : "Not charging")}" : "Battery unavailable";
+    public string CellularText
+    {
+        get
+        {
+            if (_state.Cellular is not { } c) return "Mobile connection unavailable";
+            var dataConnection = c.IsUsingCellularData ? "Mobile data" : c.IsUsingWifi switch
+            {
+                true => "Wi-Fi",
+                false => "No data connection",
+                null => "Data connection unavailable"
+            };
+            var network = c.Network switch
+            {
+                CellularNetwork.TwoG => "2G", CellularNetwork.ThreeG => "3G", CellularNetwork.FourG => "LTE",
+                CellularNetwork.FiveG => "5G", CellularNetwork.Cellular => "Cellular", _ => null
+            };
+            var signal = c.Signal switch
+            {
+                SignalStrength.None => "No signal", SignalStrength.Poor => "Weak signal", SignalStrength.Fair => "Fair signal",
+                SignalStrength.Good => "Good signal", SignalStrength.Excellent => "Strong signal", _ => null
+            };
+            return string.Join(" · ", new[] { dataConnection, network, signal }.Where(value => value is not null));
+        }
+    }
+    public string Source => _state.Media?.Source ?? "Now playing";
+    public string Title => _state.Media?.Title ?? (_state.Media is null ? "Nothing playing" : "Untitled media");
+    public string Artist => _state.Media?.Artist ?? (_state.Media is not null ? "Artist unavailable"
+        : IsConnected ? "Play something on your phone" : "Connect your phone to see media");
+    public string Dnd => _state.Dnd is { } d ? (d.Enabled ? "On" : "Off") : "Unavailable";
+    public bool CanControlDndRule => IsConnected && !IsDemo && _state.Dnd?.CanControlCompanionRule == true &&
+        _state.Dnd.CompanionRuleActive is not null;
+    public bool IsDndRuleActive => _state.Dnd?.CompanionRuleActive == true;
+    public string DndRuleState => IsDndRuleActive ? "On" : "Off";
+    public string DndRuleAction => IsDndRuleActive ? "Turn companion DND off" : "Turn companion DND on";
+    public string Sound => _state.Sound?.ToString() ?? "Unavailable";
+    public string PlaybackLabel => _state.Media?.IsPlaying == true ? "Pause" : "Play";
+    public string PlaybackStateText => _state.Media?.IsPlaying == true ? "Playing" : "Paused";
+    public string PlaybackPath => _state.Media?.IsPlaying == true
+        ? "M 6,4 L 10,4 L 10,20 L 6,20 Z M 14,4 L 18,4 L 18,20 L 14,20 Z"
+        : "M 7,3 L 21,12 L 7,21 Z";
+    public bool ClipboardEnabled => _clipboard?.Enabled == true;
+    public string ClipboardStatus => ClipboardEnabled ? (_clipboard?.CanTransfer == true ? "On" : "Waiting") : "Off";
+    public string ClipboardAction => ClipboardEnabled ? "Turn clipboard sync off" : "Turn clipboard sync on";
+    public string Footer => _commandNotice ?? (IsDemo ? "Sample data · No phone connected" : IsConnected
+        ? "Your phone, a little closer." : "Your phone will appear here when connected.");
+    private void OnStateChanged(PhoneState state)
+    {
+        if (_disposed || _dispatcher.HasShutdownStarted) return;
+        _dispatcher.BeginInvoke(() =>
+        {
+            if (_disposed) return;
+            _state = state; _commandNotice = null; Refresh();
+        });
+    }
+    private async Task SendAsync(MediaCommand command)
+    {
+        _busy = true; _commandNotice = null; Refresh();
+        try
+        {
+            var result = await _manager.SendCommandAsync(command);
+            if (result == CommandResult.Failed) _commandNotice = "Couldn't reach your phone. Try again.";
+            else if (result == CommandResult.Unavailable) _commandNotice = "This control isn't available right now.";
+        }
+        finally { _busy = false; Refresh(); }
+    }
+    private async Task ToggleDndRuleAsync()
+    {
+        _busy = true; _commandNotice = null; Refresh();
+        try
+        {
+            var result = await _manager.SetCompanionDndRuleAsync(!IsDndRuleActive);
+            if (result == CommandResult.Failed) _commandNotice = "Couldn't update companion DND. Try again.";
+            else if (result == CommandResult.Unavailable) _commandNotice = "Companion DND isn't available right now.";
+        }
+        finally { _busy = false; Refresh(); }
+    }
+    private Task ToggleClipboardAsync()
+    {
+        if (_clipboard is null) return Task.CompletedTask;
+        try { _clipboard.SetEnabled(!_clipboard.Enabled); }
+        catch (Exception) { _commandNotice = "Clipboard sync couldn't be started."; }
+        Refresh();
+        return Task.CompletedTask;
+    }
+    private void OnClipboardChanged()
+    {
+        if (_disposed || _dispatcher.HasShutdownStarted) return;
+        _dispatcher.BeginInvoke(Refresh);
+    }
+    private void OnClipboardNotice(string notice)
+    {
+        if (_disposed || _dispatcher.HasShutdownStarted) return;
+        _dispatcher.BeginInvoke(() => { _commandNotice = notice; Refresh(); });
+    }
+    private void Refresh()
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
+        Previous.Refresh(); PlayPause.Refresh(); Next.Refresh(); ToggleDndRule.Refresh(); ToggleClipboard.Refresh();
+    }
+    public void Dispose()
+    {
+        _disposed = true;
+        _manager.StateChanged -= OnStateChanged;
+        if (_clipboard is not null)
+        {
+            _clipboard.Changed -= OnClipboardChanged;
+            _clipboard.Notice -= OnClipboardNotice;
+        }
+    }
+}
+
+public sealed class AsyncCommand(Func<Task> execute, Func<bool> canExecute) : ICommand
+{
+    public event EventHandler? CanExecuteChanged;
+    public bool CanExecute(object? parameter) => canExecute();
+    public async void Execute(object? parameter) { if (CanExecute(parameter)) await execute(); }
+    public void Refresh() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+}

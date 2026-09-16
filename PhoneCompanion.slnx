@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PhoneCompanion.Core/PhoneCompanion.Core.csproj" />
+    <Project Path="src/PhoneCompanion.Windows/PhoneCompanion.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PhoneCompanion.Tests/PhoneCompanion.Tests.csproj" />
+    <Project Path="tests/PhoneCompanion.Windows.SmokeTests/PhoneCompanion.Windows.SmokeTests.csproj" />
+  </Folder>
+</Solution>
