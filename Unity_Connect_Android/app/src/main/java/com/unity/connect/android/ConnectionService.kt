@@ -57,13 +57,12 @@ class ConnectionService : Service() {
     private lateinit var collector: StateCollector
     private val prefs by lazy { getSharedPreferences("secure_peers_v1", MODE_PRIVATE) }
     private val identity by lazy { IdentityStore.load() }
-    private val sessions = mutableMapOf<String, SecureSession>()
-    private val pipes = mutableSetOf<FramePipe>()
+    private val owner = PhoneSessionOwner(scope) { scope.launch { onSessionsChanged() } }
     private var consent: CompletableDeferred<Boolean>? = null
     private var pairingUntil = 0L
     private var port = 0
-    private var collection: Job? = null
-    private var latest: PhoneSnapshot? = null
+    private lateinit var collection: PhoneStateCollection
+    private val latest get() = collection.latest
 
     override fun onCreate() {
         super.onCreate()
@@ -71,13 +70,14 @@ class ConnectionService : Service() {
         dnd = CompanionDndController(this)
         clipboard = ClipboardBridge(this)
         collector = StateCollector(this, dnd)
+        collection = PhoneStateCollection(scope, owner, collector.phoneState)
         state.value = UiState(isPaired = prefs.contains("identity"), pairedPcName = prefs.getString("name", null),
             clipboardSyncEnabled = clipboard.enabled)
         dnd.state.onEach { value -> state.update { it.copy(canControlCompanionDnd = value?.canControlCompanionRule == true,
             companionDndActive = value?.companionRuleActive == true) } }.launchIn(scope)
         fun notice(text: String) { scope.launch { state.update { it.copy(featureNotice = text) } } }
-        ble = BleManager(this, { pipe -> scope.launch { accept("ble", pipe) } }, ::notice)
-        lan = LanServer(this, { pipe -> scope.launch { accept("wifi", pipe) } },
+        ble = BleManager(this, { pipe -> owner.accept("ble", pipe, ::accept) }, ::notice)
+        lan = LanServer(this, { pipe -> owner.accept("wifi", pipe, ::accept) },
             { value -> scope.launch { port = value; refreshAddress() } }, ::notice)
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -89,8 +89,9 @@ class ConnectionService : Service() {
     }
     private fun startTransports() {
         if (!prefs.contains("identity")) pairingUntil = android.os.SystemClock.elapsedRealtime() + 120000
+        owner.enable()
         ble.start(); lan.start(); refreshAddress()
-        state.update { it.copy(connectionState = if (sessions.isEmpty()) ConnectionState.CONNECTING else ConnectionState.CONNECTED,
+        state.update { it.copy(connectionState = if (!owner.hasSessions) ConnectionState.CONNECTING else ConnectionState.CONNECTED,
             featureNotice = if (!it.isPaired) "Open Connect phone on your laptop. Pairing is available for two minutes." else null) }
     }
     private fun refreshAddress() {
@@ -111,18 +112,20 @@ class ConnectionService : Service() {
         state.update { it.copy(wifiAddress = if (address != null && port > 0) "$address:$port" else null) }
     }
     @SuppressLint("ApplySharedPref") // Trust must reach disk before the UI exposes the paired session.
-    private suspend fun accept(kind: String, pipe: FramePipe) {
-        if (sessions.containsKey(kind) || pipes.size >= 2) { pipe.close(); return }
-        pipes.add(pipe)
+    private suspend fun accept(lease: PhoneSessionOwner.Lease) {
+        val pipe = lease.pipe
+        val sessionScope = CoroutineScope(currentCoroutineContext())
         var secure: SecureSession? = null
         var watchdog: Job? = null
         var heartbeat: Job? = null
         try {
             // Closing the socket also interrupts blocking JVM reads when the coroutine times out.
-            val handshakeGuard = scope.launch { delay(120000); pipe.close() }
+            val handshakeGuard = sessionScope.launch { delay(120000); pipe.close() }
             try {
                 secure = withTimeout(120000) {
                     SecureSession.connect(pipe, identity, Build.MODEL) { peer ->
+                        currentCoroutineContext().ensureActive()
+                        check(owner.isCurrent(lease))
                         val known = prefs.getString("identity", null)
                         if (known != null) known == peer.publicKey
                         else if (android.os.SystemClock.elapsedRealtime() > pairingUntil || consent != null) false
@@ -131,6 +134,8 @@ class ConnectionService : Service() {
                             state.update { it.copy(sasCode = peer.code, pairedPcName = peer.name, awaitingOtherDevice = false) }
                             try {
                                 val accepted = choice.await()
+                                currentCoroutineContext().ensureActive()
+                                check(owner.isCurrent(lease))
                                 state.update { it.copy(awaitingOtherDevice = accepted) }
                                 accepted
                             } finally { if (consent === choice) consent = null }
@@ -139,66 +144,60 @@ class ConnectionService : Service() {
                 }
             } finally { handshakeGuard.cancel() }
             val session = secure!!
+            currentCoroutineContext().ensureActive()
             // Persist trust only after both devices confirm and complete the encrypted hello.
-            check(prefs.getString("identity", session.peer.publicKey) == session.peer.publicKey)
-            prefs.edit().putString("identity", session.peer.publicKey).putString("name", session.peer.name).commit()
-            sessions[kind] = session
+            if (!owner.publish(lease, session) {
+                check(prefs.getString("identity", session.peer.publicKey) == session.peer.publicKey)
+                prefs.edit().putString("identity", session.peer.publicKey).putString("name", session.peer.name).commit()
+            }) return
             state.update { it.copy(isPaired = true, connectionState = ConnectionState.CONNECTED, sasCode = null,
                 pairedPcName = session.peer.name, awaitingOtherDevice = false, featureNotice = null) }
             notifyState()
-            if (collection == null) restartCollector()
-            latest?.let { if (active() === session) session.send(MessageCodec.encodePhoneSnapshot(it).toByteArray(Charsets.UTF_8)) }
+            if (!collection.isCollecting) restartCollector()
+            latest?.let { if (owner.isActive(lease)) session.send(MessageCodec.encodePhoneSnapshot(it).toByteArray(Charsets.UTF_8)) }
             var lastReceived = android.os.SystemClock.elapsedRealtime()
-            watchdog = scope.launch {
+            watchdog = sessionScope.launch {
                 while (isActive) { delay(5000); if (android.os.SystemClock.elapsedRealtime() - lastReceived > 35000) { pipe.close(); break } }
             }
-            heartbeat = scope.launch {
+            heartbeat = sessionScope.launch {
                 try { while (isActive) { delay(10000); session.send(SecureSession.control("ping")) } }
                 catch (_: Exception) { pipe.close() }
             }
-            while (currentCoroutineContext().isActive) {
+            while (currentCoroutineContext().isActive && owner.isCurrent(lease)) {
                 val payload = session.receive(); lastReceived = android.os.SystemClock.elapsedRealtime()
+                currentCoroutineContext().ensureActive()
+                if (!owner.isCurrent(lease)) break
                 val root = SecureSession.parse(payload)
                 require(root["version"]?.jsonPrimitive?.int == 1)
                 when (root["type"]?.jsonPrimitive?.content) {
                     "ping" -> session.send(SecureSession.control("pong"))
                     "pong" -> Unit
                     "request_snapshot" -> latest?.let { session.send(MessageCodec.encodePhoneSnapshot(it).toByteArray(Charsets.UTF_8)) }
-                    else -> if (active() === session) handleIncoming(payload)
+                    else -> if (owner.isActive(lease)) handleIncoming(payload)
                 }
             }
         } catch (e: Exception) {
-            if (currentCoroutineContext().isActive && sessions.isEmpty()) state.update {
+            if (e is CancellationException) throw e
+            if (owner.isCurrent(lease) && !owner.hasSessions) state.update {
                 it.copy(featureNotice = "Connection ended. Open Connect phone on your laptop to try again.")
             }
         } finally {
             watchdog?.cancel(); heartbeat?.cancel()
-            if (sessions[kind] === secure) sessions.remove(kind)
-            secure?.close() ?: pipe.close(); pipes.remove(pipe)
-            state.update { it.copy(connectionState = if (sessions.isEmpty()) ConnectionState.DISCONNECTED else ConnectionState.CONNECTED,
-                sasCode = null, awaitingOtherDevice = false) }
-            if (sessions.isEmpty()) { collection?.cancelAndJoin(); collection = null; latest = null }
-            else latest?.let { snapshot -> sendActive(MessageCodec.encodePhoneSnapshot(snapshot).toByteArray(Charsets.UTF_8)) }
-            notifyState()
+            secure?.close()
         }
     }
-    private fun active() = sessions["wifi"] ?: sessions["ble"]
-    private fun restartCollector() {
-        if (sessions.isEmpty()) return
-        val previous = collection
-        collection = scope.launch {
-            previous?.cancelAndJoin()
-            collector.phoneState.collect { snapshot ->
-                latest = snapshot
-                sendActive(MessageCodec.encodePhoneSnapshot(snapshot).toByteArray(Charsets.UTF_8))
-            }
-        }
+    private suspend fun onSessionsChanged() {
+        if (!scope.isActive) return
+        state.update { it.copy(connectionState = if (owner.hasSessions) ConnectionState.CONNECTED else ConnectionState.DISCONNECTED,
+            sasCode = if (consent == null) null else it.sasCode,
+            awaitingOtherDevice = if (consent == null) false else it.awaitingOtherDevice) }
+        if (!owner.hasSessions) stopCollector()
+        else latest?.let { snapshot -> sendActive(MessageCodec.encodePhoneSnapshot(snapshot).toByteArray(Charsets.UTF_8)) }
+        notifyState()
     }
-    private suspend fun sendActive(frame: ByteArray): Boolean {
-        val session = active() ?: return false
-        return try { withTimeout(10000) { session.send(frame) }; true }
-        catch (_: Exception) { session.close(); false }
-    }
+    private fun stopCollector() = collection.stop()
+    private fun restartCollector() = collection.restart()
+    private suspend fun sendActive(frame: ByteArray) = owner.sendActive(frame)
     private fun handleIncoming(payload: ByteArray) {
         when (val message = MessageCodec.decodeIncoming(payload)) {
             is IncomingMessage.MediaCommand -> collector.dispatchMediaCommand(message.command)
@@ -208,24 +207,27 @@ class ConnectionService : Service() {
         }
     }
     private fun sendClipboard() {
-        if (active() == null || !clipboard.enabled) {
+        if (owner.active() == null || !clipboard.enabled) {
             state.update { it.copy(featureNotice = "Connect your laptop and turn clipboard sync on first.") }; return
         }
         clipboard.captureCurrent().fold(onSuccess = { content ->
+            val generation = owner.generation
             scope.launch {
                 val sent = sendActive(MessageCodec.encodeClipboard(content).toByteArray(Charsets.UTF_8))
-                state.update { it.copy(featureNotice = if (sent) "Clipboard sent to your laptop." else "Clipboard could not be sent.") }
+                if (owner.isCurrentGeneration(generation)) state.update {
+                    it.copy(featureNotice = if (sent) "Clipboard sent to your laptop." else "Clipboard could not be sent.")
+                }
             }
         }, onFailure = { error -> state.update { it.copy(featureNotice = error.message ?: "Clipboard unavailable.") } })
     }
     @SuppressLint("ApplySharedPref") // Revocation must reach disk before listeners can be restarted.
     private fun forget() {
+        owner.revoke()
         pairingUntil = 0; consent?.complete(false); consent = null
         prefs.edit().clear().commit()
         clipboard.updateEnabled(false)
-        pipes.toList().forEach { it.close() }; sessions.clear()
         ble.stop(); lan.stop(); port = 0
-        collection?.cancel(); collection = null; latest = null
+        stopCollector()
         state.value = UiState()
     }
     private fun notification(text: String): Notification {
@@ -235,14 +237,14 @@ class ConnectionService : Service() {
     }
     private fun notifyState() {
         getSystemService(NotificationManager::class.java).notify(1, notification(
-            if (sessions.isEmpty()) "Waiting for your laptop" else "Connected to your laptop"))
+            if (!owner.hasSessions) "Waiting for your laptop" else "Connected to your laptop"))
     }
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onDestroy() {
         instance = null
-        pipes.toList().forEach { it.close() }; sessions.clear()
+        owner.close(); stopCollector()
         ble.stop(); lan.stop(); scope.cancel(); dnd.close()
-        state.update { it.copy(connectionState = ConnectionState.DISCONNECTED, sasCode = null) }
+        state.update { it.copy(connectionState = ConnectionState.DISCONNECTED, sasCode = null, awaitingOtherDevice = false) }
         super.onDestroy()
     }
 }

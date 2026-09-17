@@ -23,6 +23,7 @@ import com.unity.connect.android.core.BatteryState
 import com.unity.connect.android.core.CellularState
 import com.unity.connect.android.core.MediaCapabilities
 import com.unity.connect.android.core.MediaState
+import com.unity.connect.android.core.MediaMetadataNormalizer
 import com.unity.connect.android.core.PhoneSnapshot
 import com.unity.connect.android.dnd.CompanionDndController
 import kotlinx.coroutines.channels.awaitClose
@@ -186,10 +187,10 @@ class StateCollector(
                 val actions = playback?.actions ?: 0L
                 trySend(
                     MediaState(
-                        source = readableSource(selected),
-                        title = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE),
-                        artist = metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST)
-                            ?: metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST),
+                        source = MediaMetadataNormalizer.normalize(readableSource(selected), MediaMetadataNormalizer.MAX_SOURCE_UNITS),
+                        title = MediaMetadataNormalizer.normalize(metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)),
+                        artist = MediaMetadataNormalizer.normalize(metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST)
+                            ?: metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)),
                         isPlaying = playback?.state == PlaybackState.STATE_PLAYING,
                         capabilities = MediaCapabilities(
                             playPause = actions and (PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE) != 0L,

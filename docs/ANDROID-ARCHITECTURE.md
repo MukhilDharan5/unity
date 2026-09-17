@@ -1,5 +1,7 @@
 # Android companion architecture and permissions
 
+Current implementation and limitations are maintained in [android.md](android.md), [architecture.md](architecture.md) and [PROGRESS.md](../PROGRESS.md); [CURRENT_STATE.md](../CURRENT_STATE.md) preserves Stage 0. Stage 1A aligns strict application validation with shared fixtures. The codec remains a singleton, and handshake/control validation remains separate; successful secure-session tests do not constitute adversarial security assurance.
+
 The Android project lives in `Unity_Connect_Android` and supports Android 12/API 31 or newer. It uses Kotlin, Jetpack Compose, coroutines, immutable protocol models, and a foreground service for connection work.
 
 ## Packages

@@ -1,5 +1,7 @@
 # Phone message protocol — v1
 
+Stage 1A update (17 September 2026): Android now enforces the strict application rules below and normalizes platform media metadata before encoding. Both runtimes pass 67 checked-in positive/negative cases in `tests/Fixtures/protocol-v1.json`; [testing.md](testing.md) preserves the historical regressions and current evidence. Secure handshake/control parsing is outside this application contract and remains follow-up work.
+
 This versioned logical protocol is implemented by the Windows codec and the Android companion foundation. It defines application messages only; BLE/LAN framing, encryption, authentication, and route selection remain below this layer as described in [CONNECTION-CONTRACT.md](CONNECTION-CONTRACT.md).
 
 ## Envelope and limits
@@ -10,6 +12,7 @@ This versioned logical protocol is implemented by the Windows codec and the Andr
 - Optional metadata fields may be absent or `null`. Source is at most 80 characters; title/artist at most 256 each (.NET UTF-16 code units). Blank text becomes unavailable. Media control capabilities are required; they are never inferred from a source name or track.
 - `null` means unavailable, never Off, Normal or 0%. For media, `null` also covers no active media; v1 does not distinguish permission denial from no session.
 - The selected authenticated session supplies identity and connection state. A payload cannot mark a peer trusted or connected.
+- There is no generic capability-negotiation envelope, request ID, application acknowledgment/error response or version-range negotiation in the live v1 path. Kotlin acknowledgment models are unused by live dispatch. Adding those semantics requires a reviewed protocol extension.
 - Each session delivers frames in order. There is one active transport at a time. No cross-route merging, automatic retries, timestamps or sequencing behavior is assumed. A route switch resets state and rejects callbacks from the old route.
 
 ## Phone → Windows
@@ -110,4 +113,6 @@ Sending has a five-second cancellation deadline. Repeated clicks while a send is
 
 ## Serialization boundary
 
-`IPhoneMessageCodec` owns all serialization, validation and frame-size limits. The view model and transport adapters use no JSON APIs. Replacing JSON requires another codec with equivalent typed message semantics. A factory delivers complete authenticated frames; fragmentation, message boundaries, encryption and authentication belong below this codec.
+On Windows, `IPhoneMessageCodec` owns logical-message serialization, validation and frame-size limits; the phone view model has no JSON APIs. Android calls the JSON `MessageCodec` singleton directly and still needs an equivalent replaceable boundary. Secure-session implementations parse JSON control/envelope fields separately below this layer. Windows secure-envelope parsing has an 8-level depth limit, narrower than the logical codec's 12-level limit; therefore a codec-accepted unknown nested field is not necessarily accepted end-to-end. These boundaries and validation rules need consolidation.
+
+Replacing JSON requires equivalent typed message semantics on both runtimes and an approved migration policy. A factory delivers complete authenticated frames; fragmentation, boundaries, encryption and authentication belong below the logical codec. See [ADR-002](decisions/ADR-002-protocol-format.md).

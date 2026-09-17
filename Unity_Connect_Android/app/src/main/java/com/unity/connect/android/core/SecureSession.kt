@@ -12,6 +12,7 @@ import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
 import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.crypto.Cipher
 import javax.crypto.KeyAgreement
 import javax.crypto.Mac
@@ -39,10 +40,10 @@ class SecureSession private constructor(
     private var txSequence = 0L
     private var rxSequence = 0L
     private val writes = Mutex()
-    private var closed = false
+    private val closed = AtomicBoolean()
 
     suspend fun send(frame: ByteArray) = writes.withLock {
-        check(!closed && frame.size in 1..16384)
+        check(!closed.get() && frame.size in 1..16384)
         try {
             check(txSequence < Long.MAX_VALUE)
             val sequence = ByteBuffer.allocate(8).putLong(++txSequence).array()
@@ -67,7 +68,7 @@ class SecureSession private constructor(
         return plain
     }
 
-    override fun close() { closed = true; wire.close() }
+    override fun close() { if (closed.compareAndSet(false, true)) wire.close() }
 
     companion object {
         const val MAX_WIRE_BYTES = 16408

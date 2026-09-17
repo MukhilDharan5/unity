@@ -1,6 +1,8 @@
 # Phone Companion
 
-A small Windows tray app with an Android companion. The two apps pair over BLE or Wi-Fi/LAN, verify a six-digit code, remember the approved device identity, and protect every application message with an authenticated encrypted session.
+The [progress and resume log](PROGRESS.md) records the current checkpoint: **Stage 1B-A1 complete**, with Android session revocation/publication and collector ownership tests. Stage 1B-W consolidated Windows session ownership; Stage 1A delivered strict application validation, safe metadata and 67 shared protocol fixtures. Next is Android listener lifecycle work. The [Stage 0 audit](CURRENT_STATE.md) is the historical assessment. Start with [architecture](docs/architecture.md), [security](docs/security.md), [capabilities](docs/capabilities.md), [development](docs/development.md), [testing](docs/testing.md) and the [small-stage plan](docs/stage-1-plan.md). Security and Windows UI ADRs still await a user decision.
+
+A Windows desktop control app with a compact tray flyout and an Android companion. The two apps pair over BLE or Wi-Fi/LAN, verify a six-digit code, remember the approved device identity, and protect every application message with an authenticated encrypted session.
 
 ## Try it
 
@@ -11,7 +13,9 @@ The verified Windows release is available as `artifacts/PhoneCompanion-Windows.z
 .\scripts\run.ps1 -Demo
 ```
 
-Or launch `PhoneCompanion.exe --demo --show`. Without `--demo`, the app starts disconnected. Without `--show`, it starts quietly in the tray. Click the blue phone tray icon to open or dismiss the flyout. If Windows places it in the overflow area, open the tray's up-arrow menu. Choose **Connect phone** in the flyout or the tray menu to pair. Starting the app again opens the existing instance.
+Launch `PhoneCompanion.exe` to open the desktop dashboard, or use `--demo` for sample data. Use `--tray` to start quietly in the tray, or `--flyout` to show quick controls. Click the blue phone tray icon to open or dismiss the flyout. If Windows places it in the overflow area, open the tray's up-arrow menu. Choose **Connect phone** to pair. Starting the app again opens the existing desktop window. Closing the desktop window hides it to the tray; **Open Unity Connect** restores it, and **Exit** in the tray menu quits the application.
+
+The resizable desktop window provides Phone and Connection pages for the same existing controls and state as the flyout. Both views share one phone session and follow the system light/dark theme. The dashboard follows a Windows Settings layout: a compact icon rail, battery/network/connection summaries, grouped setting rows, neutral gray surfaces, and light-blue accents. Its native title bar, pairing dialog, and tray menu also follow the system theme. No laptop hardware controls or system-monitor features are added.
 
 The sample is explicitly labeled **Sample** and **Sample data · No phone connected**. Previous/next cycle through three fictional sample tracks; play/pause changes sample playback. These controls use the same codec and state manager as the BLE and Wi-Fi paths. No sample values are presented as real phone data. The sample choice is not persisted.
 
@@ -67,7 +71,9 @@ Wi-Fi is the easiest first connection: the Android screen shows the address to e
 src/PhoneCompanion.Windows/
   App.xaml.cs                    Composition, sample selection, process lifetime
   TrayIconController.cs          Native tray icon and minimal context menu
+  MainWindow.xaml               Resizable desktop dashboard and connection page
   FlyoutWindow.xaml              Compact WPF view
+  UiResources.xaml              Shared controls, icons, and visual styles
   ViewModels/PhoneViewModel.cs    User-facing labels and media commands
   Connection/                     Live BLE/Wi-Fi framing, secure pairing, identity storage
 src/PhoneCompanion.Core/

@@ -4,7 +4,7 @@ Android companion for the Windows Phone Companion tray app.
 
 ## Build
 
-Use Android Studio with Microsoft/OpenJDK 17, Gradle 8.10.2, Android Gradle Plugin 8.8.0, and Android SDK 34.
+Use Android Studio with Microsoft/OpenJDK 17, Gradle 8.10.2, Android Gradle Plugin 8.2.2, Kotlin 1.9.20, and Android SDK 34. These describe the current working tree; see the [Stage 0 audit](../CURRENT_STATE.md) and [development workflow](../docs/development.md) for compatibility and cache limitations.
 
 ```powershell
 .\gradlew.bat :app:testDebugUnitTest

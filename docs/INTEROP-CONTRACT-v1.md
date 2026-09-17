@@ -1,5 +1,7 @@
 # Phone Companion - Implemented Interoperability Contract v1
 
+Stage 1A update (17 September 2026): this records existing v1 wire behavior. [testing.md](testing.md) records 67 shared application cases and the corrected historical Android/Windows validation differences; [security.md](security.md) separates successful interop from adversarial security assurance. Kotlin command acknowledgment models are not an implemented live acknowledgment contract.
+
 This document defines the implemented version 1 contract shared by the Windows Phone Companion and Unity Connect for Android. `SECURE-SESSION-v1.md` specifies the byte-level secure handshake and record format.
 
 ## 1. BLE Roles and Configuration
@@ -43,9 +45,8 @@ This document defines the implemented version 1 contract shared by the Windows P
 *   **Updates:** Android sends the latest normalized snapshot whenever collected phone state changes.
 *   **Stale State and Disconnection:** If the transport disconnects, Windows immediately clears all state to disconnected.
 *   **Liveness:**
-    *   LAN: TCP Keep-alive + Application-level ping every 10 seconds. Timeout at 30 seconds.
-    *   BLE: Relies on Android's GATT disconnect callback.
-*   **Reconnect Behavior:** Windows makes one short startup attempt to the last Wi-Fi endpoint, followed by a bounded BLE discovery attempt. The user can reconnect immediately from **Connect phone**.
+    *   Both LAN and BLE: encrypted application ping every 10 seconds, with a 35-second received-record silence deadline. Android checks that deadline every 5 seconds; GATT disconnect callbacks also close the Android pipe. The Android TCP socket additionally enables OS keep-alive.
+*   **Reconnect Behavior:** Windows repeatedly tries the saved Wi-Fi endpoint (up to 8 seconds), then BLE (up to 15 seconds), with 2/5/10/20/30-second capped pauses while disconnected. The user can reconnect immediately from **Connect phone**. There is no connected-session BLE-to-LAN promotion or Windows mDNS browsing.
 
 ## 5. Command Semantics
 *   **Confirmation:** Media and DND commands do not update Windows state optimistically. The resulting Android snapshot is the authoritative confirmation. Version 1 does not retry toggle/skip commands after an ambiguous transport failure.

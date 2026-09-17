@@ -1,0 +1,43 @@
+# Windows implementation and UX assessment
+
+Status: updated through Stage 1B-W, 17 September 2026. Sources are in `src/PhoneCompanion.Windows/`; no framework migration was made. See [PROGRESS.md](../PROGRESS.md) for the next checkpoint.
+
+## Host and platform boundaries
+
+The user-level .NET 10 app targets Windows SDK 26100 with minimum supported API 19041, uses WPF for windows, WinForms for tray/context menu, WinRT for BLE and P/Invoke for clipboard/window behavior. The manifest requests `asInvoker`, PerMonitorV2 DPI awareness and long paths. There is no privileged service, driver, installer, scheduled startup registration or Credential Provider.
+
+`App.xaml.cs` composes the manager, codec, theme service, clipboard coordinator, shared view model, flyout, desktop and tray. A named local mutex plus event provides single-instance/show behavior. Default launch opens the desktop dashboard; `--tray` suppresses it, `--flyout` opens quick controls and `--demo` selects explicit fictional data. Closing windows hides them; tray Exit awaits manager teardown.
+
+## Presentation
+
+The 368-DIP flyout positions in the cursor monitor's lower-right working area, remeasures after movement, and hides on Escape/deactivation/Alt+F4. It uses an explicitly transparent, borderless WPF window, rounded borders and a `DropShadowEffect`, not a system backdrop. Its position is not obtained from the tray icon's rectangle/taskbar orientation.
+
+The desktop has a native title bar with DWM dark caption/rounded-corner requests. It is resizable, minimum 800 x 580, with phone and connection pages. Its phone summaries/settings duplicate flyout functions. The shared view model provides friendly labels, unavailable states, capability-gated media commands, separate effective/companion DND and clipboard status. Pairing remains a separate WPF dialog.
+
+`SystemThemeService` follows the app light/dark registry preference and system preference events. Accent colors are fixed blue; there is no system-accent or high-contrast integration. Many controls have accessible names, keyboard focus visuals and tooltips. Switch-shaped controls are `Button` templates, so they do not automatically expose toggle state through UI Automation.
+
+`TrayIconController` draws a 32-pixel phone icon and themes a WinForms context menu. Its tooltip is only `Phone Companion · <status>`. Battery/friendly trusted-device name/OEM performance status are not supplied. No OEM laptop, audio-routing or scrcpy controls exist.
+
+## UI review performed
+
+The existing smoke runner instantiates actual XAML/view model/tray, checks shared state, samples, media command gating/visibility, DND separation, clipboard defaults/echo suppression, desktop navigation, small-window scrolling and close/reopen behavior. It renders 20 states, including light/dark flyouts, desktop, pairing, disconnection, long metadata and 150% rasters. Representative light flyout and dark desktop images were inspected during the audit.
+
+The presentation is restrained and readable, with consistent Segoe typography and grouped settings. It is a functional foundation, not a finished native Windows 11 feature. The full dashboard differs from the requested setup/configuration purpose; default desktop launch differs from a tray-first product. Paused media disappears, making resume unavailable through its visible block. Fixed color palettes/custom switches and lack of real system materials prevent calling the design complete.
+
+Still required at the UI stage: actual 100/125/150/200% monitor scaling and movement; taskbar/overflow placement; keyboard flow and screen reader/toggle patterns; high contrast; accent changes; native menu/backdrop behavior; intentional reconnect/loading layouts; animation/power measurements. A raster resized to 150% does not prove PerMonitorV2 behavior.
+
+## Connections, clipboard and storage
+
+Production `LivePhoneTransport` supplies the secure handshake/TCP/GATT connection to Core's `SessionPhoneTransport`, which now owns the same lifecycle used by factory transports. Read completion/failure and ambiguous send failure cancel the route and release its session. Stop drains the connection attempt, reader and active sends; a late factory result is disposed without reporting Connected. Concurrent stop/dispose callers share cleanup completion. Canceling a StopAsync wait abandons only that wait. Identity disposal occurs after ownership drains. Secure send/heartbeat failures use the session's idempotent close path.
+
+The manager owns one route; reconnect orchestration still lives in `App`. It repeatedly tries saved LAN and a bounded BLE scan with capped pauses. It does not browse Android mDNS, maintain an independent presence route or promote a connected BLE route to LAN. App-level reconnect/sample/forget/exit races, crypto-object erasure and physical behavior remain follow-ups. Six live-transport scenarios now test real secure handshakes over in-memory frame connections alongside the existing UI smoke checks; see [testing.md](testing.md).
+
+The Windows clipboard provider uses a message-only HWND plus `AddClipboardFormatListener`. Monitoring starts only on opt-in; future text changes are coalesced, and incoming updates are applied on the dispatcher with echo suppression. Windows enablement is in memory, not persisted. Disable stops monitoring/pending text, but cannot retract text already written onto a transport.
+
+Private identity is non-exportable in Microsoft Software CNG KSP; public trust/name/endpoint is an atomically replaced per-user JSON file under LocalAppData. One phone is supported. Explicit schema/recovery/local-user integrity assumptions need documentation and tests; a privileged Windows service is unnecessary for these baseline capabilities.
+
+## UI direction requiring approval
+
+Modernizing WPF retains working XAML/tests and minimizes immediate packaging work, but custom controls need substantial native behavior/accessibility care. Replacing only the shell with WinUI 3 supplies Microsoft's modern native control family and backdrop/window integration, with additional Windows App Runtime/deployment and tray/window ownership work. Retain Core and platform providers either way.
+
+Recommend a WinUI 3 presentation substage after foundation stabilization for the requested quality standard. This is an engineering recommendation, not a requirement to discard WPF now. Microsoft describes [in-place modernization and WinUI UI migration](https://learn.microsoft.com/en-us/windows/apps/windows-app-sdk/migrate-to-windows-app-sdk/migration-decision-guide). See [ADR-004](decisions/ADR-004-windows-ui-direction.md).

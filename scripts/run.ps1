@@ -5,4 +5,4 @@ $executable = Join-Path $projectRoot 'artifacts/PhoneCompanion/PhoneCompanion.ex
 if (-not (Test-Path -LiteralPath $executable)) { throw 'Build first with scripts/build.ps1.' }
 $launchArgs = @('--show')
 if ($Demo) { $launchArgs += '--demo' }
-Start-Process -FilePath $executable -ArgumentList $launchArgs -WindowStyle Hidden
+Start-Process -FilePath $executable -ArgumentList $launchArgs -WindowStyle Normal

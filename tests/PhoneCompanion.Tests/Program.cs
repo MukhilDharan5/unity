@@ -114,6 +114,26 @@ Test("Malformed and arbitrary frames never crash decoder", () =>
     for (var i = 0; i < 2000; i++) { var bytes = new byte[random.Next(1, 2048)]; random.NextBytes(bytes); codec.Decode(bytes); }
     return Task.CompletedTask;
 });
+Test("Shared v1 fixtures agree on application acceptance and round-trip semantics", () =>
+{
+    using var document = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "protocol-v1.json")));
+    var fixtures = document.RootElement.GetProperty("fixtures").EnumerateArray().ToArray();
+    Check(fixtures.Length >= 25, "Shared fixture source is unexpectedly empty.");
+    foreach (var fixture in fixtures)
+    {
+        var name = fixture.GetProperty("name").GetString();
+        var expected = fixture.GetProperty("valid").GetBoolean();
+        var result = Decode(fixture.GetProperty("payload").GetString()!);
+        Check(result.Success == expected, $"Shared fixture {name}: expected valid={expected}, got {result.Error}.");
+        if (expected)
+        {
+            var roundTrip = codec.Decode(codec.Encode(result.Message!));
+            Check(roundTrip.Success && roundTrip.Message == result.Message, $"Shared fixture {name}: typed round-trip differed.");
+        }
+    }
+    Console.WriteLine($"Verified {fixtures.Length} shared v1 fixtures.");
+    return Task.CompletedTask;
+});
 Test("Disconnected startup never invents phone values or accepts commands", async () =>
 {
     await using var manager = new PhoneStateManager(codec);
@@ -325,6 +345,79 @@ Test("Disposal cancels a pending session read and releases connection exactly on
     Check(session.DisposeCount == 1 && manager.Current == PhoneState.Empty);
 });
 
+Test("Stop fences a factory returning after cancellation and rejects reuse", async () =>
+{
+    var factory = new GatedFactory();
+    var session = new TestSession("phone");
+    await using var transport = new BleTransport(factory, new("phone"), codec.MaxFrameBytes);
+    var states = new List<ConnectionState>(); transport.ConnectionChanged += states.Add;
+    var start = transport.StartAsync();
+    await factory.Entered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+    try { await transport.StartAsync(); throw new Exception("Expected single-use guard"); }
+    catch (InvalidOperationException) { }
+    var stop = transport.StopAsync();
+    Check(factory.Token.IsCancellationRequested && !stop.IsCompleted);
+    factory.Result.SetResult(session);
+    try { await start; throw new Exception("Expected canceled start"); }
+    catch (OperationCanceledException) { }
+    await stop.WaitAsync(TimeSpan.FromSeconds(3));
+    Check(session.DisposeCount == 1 && session.Reads == 0 && !states.Contains(ConnectionState.Connected));
+    try { await transport.StartAsync(); throw new Exception("Expected stopped guard"); }
+    catch (InvalidOperationException) { }
+});
+Test("Canceled stop wait leaves cleanup running; concurrent dispose waits for release", async () =>
+{
+    var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    var session = new TestSession("phone") { BlockDispose = gate };
+    var transport = new WifiTransport(new TestFactory(session), new("phone"), codec.MaxFrameBytes);
+    await transport.StartAsync();
+    using var wait = new CancellationTokenSource();
+    var stop = transport.StopAsync(wait.Token);
+    await session.DisposeEntered.Task.WaitAsync(TimeSpan.FromSeconds(3)); wait.Cancel();
+    try { await stop; throw new Exception("Expected canceled wait"); }
+    catch (OperationCanceledException) { }
+    var first = transport.DisposeAsync().AsTask(); var second = transport.DisposeAsync().AsTask();
+    Check(!first.IsCompleted && !second.IsCompleted && session.DisposeCount == 1);
+    gate.SetResult();
+    await Task.WhenAll(first, second, transport.StopAsync()).WaitAsync(TimeSpan.FromSeconds(3));
+    Check(session.DisposeCompleted && session.DisposeCount == 1);
+    try { await transport.StartAsync(); throw new Exception("Expected disposed guard"); }
+    catch (ObjectDisposedException) { }
+});
+Test("Remote end cancels an active send and shutdown drains it without retry", async () =>
+{
+    var session = new TestSession("phone") { BlockSend = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+    await using var transport = new WifiTransport(new TestFactory(session), new("phone"), codec.MaxFrameBytes);
+    await transport.StartAsync();
+    var send = transport.SendAsync(codec.Encode(new MediaCommandMessage(MediaCommand.PlayPause)));
+    await session.SendEntered.Task.WaitAsync(TimeSpan.FromSeconds(3)); session.End();
+    try { await send.WaitAsync(TimeSpan.FromSeconds(3)); throw new Exception("Expected canceled send"); }
+    catch (OperationCanceledException) { }
+    await transport.StopAsync().WaitAsync(TimeSpan.FromSeconds(3));
+    Check(session.Sent.Count == 1 && session.DisposeCount == 1 && session.DisposeCompleted);
+});
+Test("Receiver failure releases the session before reporting the fault", async () =>
+{
+    var session = new TestSession("phone");
+    await using var transport = new WifiTransport(new TestFactory(session), new("phone"), codec.MaxFrameBytes);
+    var fault = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
+    transport.Faulted += error => fault.TrySetResult(error);
+    await transport.StartAsync(); session.End(new IOException("Fictional read failure"));
+    await fault.Task.WaitAsync(TimeSpan.FromSeconds(3));
+    Check(transport.State == ConnectionState.Disconnected && session.DisposeCompleted && session.DisposeCount == 1);
+});
+Test("A late frame from a canceled reader never reaches the consumer", async () =>
+{
+    var session = new LateFrameSession();
+    await using var transport = new WifiTransport(new TestFactory(session), new("phone"), codec.MaxFrameBytes);
+    var delivered = 0; var faults = 0;
+    transport.FrameReceived += _ => delivered++; transport.Faulted += _ => faults++;
+    await transport.StartAsync(); await session.Entered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+    var stop = transport.StopAsync(); Check(!stop.IsCompleted);
+    session.Continue.SetResult(); await stop.WaitAsync(TimeSpan.FromSeconds(3));
+    Check(delivered == 0 && faults == 0 && session.DisposeCount == 1);
+});
+
 Test("Secure session proves identities, agrees on a code, and encrypts both directions", async () =>
 {
     var (clientWire, serverWire) = MemoryFrameConnection.Pair();
@@ -399,7 +492,7 @@ sealed class TestTransport(TransportKind kind = TransportKind.Ble) : IPhoneTrans
     public Task StopAsync(CancellationToken cancellationToken = default) { Disconnect(); return Task.CompletedTask; }
     public ValueTask DisposeAsync() { Disposed = true; Disconnect(); return ValueTask.CompletedTask; }
 }
-sealed class TestFactory(TestSession session) : IBleSessionFactory, IWifiSessionFactory
+sealed class TestFactory(IAuthenticatedPhoneSession session) : IBleSessionFactory, IWifiSessionFactory
 {
     public Task<IAuthenticatedPhoneSession> ConnectAsync(TrustedPhone phone, int maxFrameBytes, CancellationToken cancellationToken)
         => Task.FromResult<IAuthenticatedPhoneSession>(session);
@@ -409,6 +502,25 @@ sealed class WaitingFactory : IBleSessionFactory
     public async Task<IAuthenticatedPhoneSession> ConnectAsync(TrustedPhone phone, int maxFrameBytes, CancellationToken cancellationToken)
     { await Task.Delay(Timeout.Infinite, cancellationToken); throw new InvalidOperationException(); }
 }
+sealed class GatedFactory : IBleSessionFactory
+{
+    public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public TaskCompletionSource<IAuthenticatedPhoneSession> Result { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public CancellationToken Token { get; private set; }
+    public Task<IAuthenticatedPhoneSession> ConnectAsync(TrustedPhone phone, int maxFrameBytes, CancellationToken cancellationToken)
+    { Token = cancellationToken; Entered.SetResult(); return Result.Task; }
+}
+sealed class LateFrameSession : IAuthenticatedPhoneSession
+{
+    public string VerifiedIdentity => "phone";
+    public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public TaskCompletionSource Continue { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public int DisposeCount { get; private set; }
+    public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadFramesAsync([EnumeratorCancellation] CancellationToken cancellationToken)
+    { Entered.SetResult(); await Continue.Task; yield return new byte[] { 1 }; }
+    public Task SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken cancellationToken) => Task.CompletedTask;
+    public ValueTask DisposeAsync() { DisposeCount++; return ValueTask.CompletedTask; }
+}
 sealed class TestSession(string identity) : IAuthenticatedPhoneSession
 {
     private readonly Channel<ReadOnlyMemory<byte>> _frames = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
@@ -417,20 +529,30 @@ sealed class TestSession(string identity) : IAuthenticatedPhoneSession
     public int DisposeCount { get; private set; }
     public int Reads { get; private set; }
     public bool FailSend { get; init; }
+    public TaskCompletionSource? BlockSend { get; init; }
+    public TaskCompletionSource? BlockDispose { get; init; }
+    public TaskCompletionSource SendEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public TaskCompletionSource DisposeEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public bool DisposeCompleted { get; private set; }
     public List<byte[]> Sent { get; } = [];
     public void Feed(byte[] frame) => _frames.Writer.TryWrite(frame);
-    public void End() => _frames.Writer.TryComplete();
+    public void End(Exception? error = null) => _frames.Writer.TryComplete(error);
     public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadFramesAsync([EnumeratorCancellation] CancellationToken cancellationToken)
     {
         await foreach (var frame in _frames.Reader.ReadAllAsync(cancellationToken)) { Reads++; yield return frame; }
     }
-    public Task SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken cancellationToken)
+    public async Task SendFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken cancellationToken)
     {
-        Sent.Add(frame.ToArray());
+        Sent.Add(frame.ToArray()); SendEntered.TrySetResult();
         if (FailSend) throw new IOException("Test send failure");
-        return Task.CompletedTask;
+        if (BlockSend is not null) await BlockSend.Task.WaitAsync(cancellationToken);
     }
-    public ValueTask DisposeAsync() { DisposeCount++; Disposed = true; End(); return ValueTask.CompletedTask; }
+    public async ValueTask DisposeAsync()
+    {
+        DisposeCount++; Disposed = true; End(); DisposeEntered.TrySetResult();
+        if (BlockDispose is not null) await BlockDispose.Task;
+        DisposeCompleted = true;
+    }
 }
 sealed class MemoryFrameConnection(Channel<byte[]> incoming, Channel<byte[]> outgoing) : IFrameConnection
 {

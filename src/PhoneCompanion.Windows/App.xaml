@@ -5,16 +5,22 @@
     <Application.Resources>
         <!-- Light defaults prevent an unstyled frame before SystemThemeService applies Windows' theme. -->
         <SolidColorBrush x:Key="WindowBackground" Color="#FFFFFFFF" />
-        <SolidColorBrush x:Key="SurfaceBackground" Color="#FFF3F9FE" />
-        <SolidColorBrush x:Key="SubtleBackground" Color="#FFF6F7F8" />
+        <SolidColorBrush x:Key="SurfaceBackground" Color="#FFFBFBFB" />
+        <SolidColorBrush x:Key="SubtleBackground" Color="#FFF5F5F5" />
         <SolidColorBrush x:Key="PrimaryText" Color="#FF0A0A0B" />
-        <SolidColorBrush x:Key="SecondaryText" Color="#FF5D6268" />
+        <SolidColorBrush x:Key="SecondaryText" Color="#FF606060" />
         <SolidColorBrush x:Key="Accent" Color="#FF75C6FF" />
         <SolidColorBrush x:Key="AccentText" Color="#FF0A0A0B" />
         <SolidColorBrush x:Key="AccentSurface" Color="#FFDDF1FF" />
-        <SolidColorBrush x:Key="Border" Color="#FFDCE5EC" />
+        <SolidColorBrush x:Key="Border" Color="#FFE5E5E5" />
         <SolidColorBrush x:Key="Icon" Color="#FF25282B" />
         <SolidColorBrush x:Key="Disabled" Color="#FFADB5BC" />
         <SolidColorBrush x:Key="Shadow" Color="#FF000000" />
+        <SolidColorBrush x:Key="PageBackground" Color="#FFF3F3F3" />
+        <SolidColorBrush x:Key="CardBackground" Color="#FFFBFBFB" />
+        <SolidColorBrush x:Key="SidebarBackground" Color="#FFF3F3F3" />
+        <SolidColorBrush x:Key="AccentInk" Color="#FF29688F" />
+        <SolidColorBrush x:Key="SwitchTrack" Color="#FFFFFFFF" />
+        <SolidColorBrush x:Key="NavigationSelected" Color="#FFE7E7E7" />
     </Application.Resources>
 </Application>

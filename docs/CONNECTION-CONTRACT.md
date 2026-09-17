@@ -32,9 +32,11 @@ Windows Wi-Fi connects to the `address:38471` shown by Android. TCP uses a four-
 
 For BLE, Windows is the central/GATT client and Android is the peripheral/GATT server. Windows filters advertisements by the agreed service UUID, subscribes to the TX notification characteristic, and writes with response to RX. A one-byte sequence/first/last header fragments the same secure packets used by TCP. Both reassemblers enforce ordering, time, queue, and size bounds.
 
-Windows tries a saved Wi-Fi address for eight seconds at startup, followed by a bounded BLE scan. The pairing window offers both routes explicitly. Android starts both listeners automatically for a trusted laptop and when the user taps **Start pairing** for a new laptop.
+Windows starts a remembered-device reconnect loop at startup and after disconnect: it tries the saved Wi-Fi endpoint for up to eight seconds, then BLE for up to fifteen seconds, with pauses of 2, 5, 10, 20 and then 30 seconds between rounds. Rounds continue while disconnected. The underlying manual BLE scan has a twenty-second bound; first pairing has a two-minute overall deadline. The pairing window offers both routes explicitly. Android starts both listeners automatically for a trusted laptop and when the user taps **Start pairing** for a new laptop. New trust approval is limited to two minutes, but listener/advertising expiry shutdown is not scheduled.
 
 Android may hold authenticated BLE and Wi-Fi sessions simultaneously but routes application messages through one active session, preferring Wi-Fi. If Wi-Fi closes, it sends the latest snapshot over authenticated BLE. Windows owns one route at a time and clears displayed phone state immediately when that route disconnects.
+
+Since Stage 1B-A1, Android `PhoneSessionOwner` reserves pending/connected routes before coroutine dispatch and tracks their jobs/guarded pipes. Publication and the service's synchronous trust write require a current lease/generation. Forget disables admission and invalidates that generation before closing/canceling work; destruction prevents further admission. A late old job cannot publish trust or remove a newer same-kind route. Ambiguous send failure closes the selected route without retrying the payload on another. `PhoneStateCollection` owns snapshot observers/latest state and waits for prior cleanup during replacement. Service remains the Android host and approval/control dispatcher. Listener resource startup/shutdown is separate remaining work in 1B-A2.
 
 ## Session behavior
 
@@ -44,8 +46,10 @@ Both sides send encrypted pings every 10 seconds. Android closes a route after 3
 
 The state manager serializes lifecycle changes and commands, fences callbacks from old routes, and gives first pairing up to two minutes for human confirmation. User commands have a five-second application deadline and are never retried after an ambiguous send. Windows waits for Android’s next state snapshot rather than changing media or DND state optimistically.
 
-The earlier `IBleSessionFactory` and `IWifiSessionFactory` abstractions remain useful for tests and alternate transports. The packaged app uses `LivePhoneTransport`, `ConnectionFactories`, and `SecurePhoneSession`.
+`IBleSessionFactory` and `IWifiSessionFactory` remain useful for tests and alternate transports. Since Stage 1B-W, they and the packaged `LivePhoneTransport` use the same Core `SessionPhoneTransport` owner. The packaged adapter retains `ConnectionFactories` and `SecurePhoneSession`. Each transport is one attempt; stop cancels and drains pending connection/read/send work. A returned session after cancellation is disposed without publishing Connected. Concurrent cleanup callers await the same release; canceling a stop wait does not stop cleanup. Factories/wires must honor cancellation or bounded completion and disposal must unblock reads/writes.
 
 ## Hardware boundary
+
+The [Stage 0 audit](../CURRENT_STATE.md) is historical. [PROGRESS.md](../PROGRESS.md) records corrected application validation and Windows ownership plus remaining Android/reconnect/capability/security work. Six live-transport lifecycle scenarios now exercise the production handshake over fake frame connections; they do not constitute comprehensive reliability/security or physical-radio validation.
 
 Automated .NET and JVM tests verify state routing, framing limits, identity proof, code agreement, encryption, and bidirectional messages. A physical Android 12+ phone is required to validate BLE peripheral support, radio behavior, Android notification/DND/clipboard surfaces, OEM background limits, sleep/resume, and the local firewall/network environment.

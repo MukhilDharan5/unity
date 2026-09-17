@@ -3,17 +3,12 @@ package com.unity.connect.android.core
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
-import java.util.UUID
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 /** Serialization, validation, and command decoding for v1 JSON frames. */
@@ -64,69 +59,70 @@ object MessageCodec {
     }
 
     inline fun <reified T> decode(data: String): T {
-        validateFrameSize(data.toByteArray(StandardCharsets.UTF_8))
-        validateNestingDepth(data)
+        validateJsonStructure(data)
         return json.decodeFromString(data)
     }
 
-    fun getMessageType(data: String): String? = parseObject(data)?.get("type")?.jsonPrimitive?.contentOrNull
-    fun getVersion(data: String): Int? = parseObject(data)?.get("version")?.jsonPrimitive?.intOrNull
+    /** Structural helper for legacy typed serializers, including unused acknowledgment models. */
+    fun validateJsonStructure(data: String) { V1MessageValidator.parse(data) }
 
-    fun encodePhoneSnapshot(snapshot: PhoneSnapshot): String = encode(snapshot)
-    fun decodePhoneSnapshot(data: String): PhoneSnapshot = decode(data)
-    fun encodeBatteryMessage(message: BatteryMessage): String = encode(message)
-    fun encodeMediaMessage(message: MediaMessage): String = encode(message)
-    fun encodeCellularMessage(message: CellularMessage): String = encode(message)
-    fun encodeDndMessage(message: DndMessage): String = encode(message)
-    fun encodeSoundMessage(message: SoundMessage): String = encode(message)
-    fun encodeMediaCommand(command: MediaCommand): String = encode(command)
-    fun decodeMediaCommand(data: String): MediaCommand = decode(data)
+    fun getMessageType(data: String): String? = runCatching {
+        val value = V1MessageValidator.parse(data)["type"] as? JsonPrimitive
+        value?.takeIf { it.isString }?.content
+    }.getOrNull()
+    fun getVersion(data: String): Int? = runCatching {
+        val value = V1MessageValidator.parse(data)["version"] as? JsonPrimitive
+        value?.takeUnless { it.isString }?.intOrNull
+    }.getOrNull()
+
+    private inline fun <reified T> encodeApplication(payload: T): String = encode(payload).also {
+        V1MessageValidator.validate(V1MessageValidator.parse(it))
+    }
+
+    fun encodePhoneSnapshot(snapshot: PhoneSnapshot): String = encodeApplication(snapshot)
+    fun decodePhoneSnapshot(data: String): PhoneSnapshot {
+        val root = V1MessageValidator.parse(data)
+        V1MessageValidator.validate(root)
+        require((root["type"] as? JsonPrimitive)?.content == "snapshot") { "Expected snapshot" }
+        return V1MessageValidator.snapshot(root)
+    }
+    fun encodeBatteryMessage(message: BatteryMessage): String = encodeApplication(message)
+    fun encodeMediaMessage(message: MediaMessage): String = encodeApplication(message)
+    fun encodeCellularMessage(message: CellularMessage): String = encodeApplication(message)
+    fun encodeDndMessage(message: DndMessage): String = encodeApplication(message)
+    fun encodeSoundMessage(message: SoundMessage): String = encodeApplication(message)
+    fun encodeMediaCommand(command: MediaCommand): String = encodeApplication(command)
+    fun decodeMediaCommand(data: String): MediaCommand {
+        val root = V1MessageValidator.parse(data)
+        V1MessageValidator.validate(root)
+        require((root["type"] as? JsonPrimitive)?.content == "media_command") { "Expected media command" }
+        return decode(data)
+    }
     fun encodeCommandAck(ack: CommandAck): String = encode(ack)
     fun decodeCommandAck(data: String): CommandAck = decode(data)
 
     fun encodeClipboard(content: ClipboardContent): String {
-        require(isValidClipboard(content)) { "Invalid clipboard content" }
         return buildJsonObject {
             put("version", VERSION)
             put("type", "clipboard")
             put("updateId", content.updateId)
             put("text", content.text)
-        }.toString().also { validateFrameSize(it.toByteArray(StandardCharsets.UTF_8)) }
+        }.toString().also { V1MessageValidator.validate(V1MessageValidator.parse(it)) }
     }
 
-    fun decodeIncoming(frame: ByteArray): IncomingMessage? {
+    /** Reject malformed/unexpected application input without unwinding the connection coroutine. */
+    fun decodeIncoming(frame: ByteArray): IncomingMessage? = runCatching {
         val text = decodeUtf8(frame) ?: return null
-        val root = parseObject(text) ?: return null
-        if (root["version"]?.jsonPrimitive?.intOrNull != VERSION) return null
-        return when (root["type"]?.jsonPrimitive?.contentOrNull) {
-            "media_command" -> when (val command = root["command"]?.jsonPrimitive?.contentOrNull) {
-                "play_pause", "next_track", "previous_track" -> IncomingMessage.MediaCommand(command)
-                else -> null
-            }
-            "dnd_rule_command" -> root["active"]?.jsonPrimitive?.booleanOrNull?.let {
-                IncomingMessage.DndRuleCommand(it)
-            }
-            "clipboard" -> decodeClipboard(root)?.let(IncomingMessage::ClipboardUpdate)
-            else -> null
-        }
-    }
-
-    private fun parseObject(data: String): JsonObject? = runCatching {
-        validateFrameSize(data.toByteArray(StandardCharsets.UTF_8))
-        validateNestingDepth(data)
-        json.parseToJsonElement(data).jsonObject
+        val root = V1MessageValidator.parse(text)
+        V1MessageValidator.validate(root)
+        V1MessageValidator.incoming(root)
     }.getOrNull()
 
-    private fun decodeClipboard(root: JsonObject): ClipboardContent? {
-        val updateId = root["updateId"]?.jsonPrimitive?.contentOrNull ?: return null
-        val text = root["text"]?.jsonPrimitive?.contentOrNull ?: return null
-        val canonicalId = runCatching { UUID.fromString(updateId).toString() }.getOrNull() ?: return null
-        return ClipboardContent(canonicalId, text).takeIf(::isValidClipboard)
-    }
-
-    private fun isValidClipboard(content: ClipboardContent): Boolean =
-        content.text.isNotEmpty() && '\u0000' !in content.text &&
-            content.text.toByteArray(StandardCharsets.UTF_8).size <= MAX_CLIPBOARD_TEXT_BYTES
+    fun validateApplicationFrame(frame: ByteArray): Boolean = runCatching {
+        val text = decodeUtf8(frame) ?: return false
+        V1MessageValidator.validate(V1MessageValidator.parse(text))
+        true
+    }.getOrDefault(false)
 
     private fun decodeUtf8(bytes: ByteArray): String? = runCatching {
         validateFrameSize(bytes)

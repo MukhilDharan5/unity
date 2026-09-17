@@ -1,0 +1,351 @@
+<Window x:Class="PhoneCompanion.Windows.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Unity Connect" Icon="{DynamicResource AppIcon}"
+        Width="1180" Height="820" MinWidth="800" MinHeight="580" WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource SidebarBackground}" Foreground="{DynamicResource PrimaryText}"
+        FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13"
+        TextOptions.TextFormattingMode="Display" UseLayoutRounding="True" SnapsToDevicePixels="True">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="UiResources.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="VisibleIf" />
+            <Style x:Key="SummaryCard" TargetType="Border" BasedOn="{StaticResource Card}">
+                <Setter Property="MinHeight" Value="144" />
+                <Setter Property="Padding" Value="18,16" />
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+    <Grid Background="{DynamicResource SidebarBackground}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="96" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid Margin="12,18,12,18">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <StackPanel>
+                <Button x:Name="PhoneNavigation" Style="{StaticResource NavigationButton}" Tag="Selected"
+                        Click="OnPhone" Margin="0,0,0,6" ToolTip="Phone" AutomationProperties.Name="Phone dashboard">
+                    <StackPanel>
+                        <TextBlock Text="&#xE8EA;" Style="{StaticResource Glyph}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                   FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,10" />
+                        <TextBlock Text="Phone" FontSize="11" TextAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button x:Name="ConnectionNavigation" Style="{StaticResource NavigationButton}"
+                        Click="OnConnection" ToolTip="Connection" AutomationProperties.Name="Connection">
+                    <StackPanel>
+                        <TextBlock Text="&#xE71B;" Style="{StaticResource Glyph}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                   FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,10" />
+                        <TextBlock Text="Connection" FontSize="11" TextAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+            <StackPanel Grid.Row="2">
+                <StackPanel HorizontalAlignment="Center" Margin="0,0,0,24" ToolTip="{Binding Status}">
+                    <Ellipse Width="7" Height="7" Margin="0,0,0,8">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="{DynamicResource Disabled}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                        <Setter Property="Fill" Value="{DynamicResource AccentInk}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock Text="{Binding Status}" FontSize="10" TextAlignment="Center" Foreground="{DynamicResource SecondaryText}"
+                               AutomationProperties.LiveSetting="Polite" />
+                </StackPanel>
+                <StackPanel ToolTip="Close the window to keep Unity Connect in your tray.">
+                    <TextBlock Text="&#xE737;" Style="{StaticResource Glyph}" Foreground="{DynamicResource SecondaryText}"
+                               FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                    <TextBlock Text="Tray active" FontSize="10" Foreground="{DynamicResource SecondaryText}" TextAlignment="Center" />
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+        <Border Grid.Column="1" Background="{DynamicResource PageBackground}" CornerRadius="8,0,0,0" Margin="0,4,0,0">
+            <Grid Margin="30,25,28,20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid Margin="0,0,0,26">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,20,0">
+                        <TextBlock x:Name="PageTitle" Text="Phone" FontSize="28" FontWeight="SemiBold" />
+                        <TextBlock x:Name="PageSubtitle" Text="Phone status and connected experiences." Style="{StaticResource Caption}" Margin="0,6,0,0" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="Connect phone" Style="{StaticResource PrimaryButton}" MinWidth="120"
+                            VerticalAlignment="Center" Click="OnConnectPhone" AutomationProperties.Name="Connect or manage phone" />
+                </Grid>
+                <ScrollViewer x:Name="PhoneScrollViewer" Grid.Row="1" Style="{StaticResource CleanScrollViewer}"
+                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,2">
+                    <Grid>
+                        <StackPanel x:Name="PhonePage">
+                            <StackPanel>
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <TextBlock Text="Get started" Style="{StaticResource SectionHeading}" />
+                                <Border Style="{StaticResource Card}" Padding="24" Margin="0,0,0,28">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="56" Height="64" CornerRadius="6" Background="{DynamicResource AccentSurface}" Margin="0,0,20,0">
+                                            <TextBlock Text="&#xE8EA;" Style="{StaticResource Glyph}" FontSize="30" Foreground="{DynamicResource AccentInk}" HorizontalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="Connect your phone" FontSize="20" FontWeight="SemiBold" />
+                                            <TextBlock Text="Open Unity Connect on Android to see your phone’s battery, network, sound, and media here."
+                                                       Style="{StaticResource Caption}" Margin="0,8,0,0" MaxWidth="570" HorizontalAlignment="Left" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                                <TextBlock Text="Before you connect" Style="{StaticResource SectionHeading}" />
+                                <Border Style="{StaticResource SettingRow}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="36" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <TextBlock Text="&#xE701;" Style="{StaticResource Glyph}" FontSize="22" />
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="Wi-Fi or Bluetooth" Style="{StaticResource SettingTitle}" />
+                                            <TextBlock Text="Choose a connection in Connect phone. Keep both devices nearby for Bluetooth, or on the same network for Wi-Fi."
+                                                       Style="{StaticResource Caption}" Margin="0,5,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                                <Border Style="{StaticResource SettingRow}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="36" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <TextBlock Text="&#xE72E;" Style="{StaticResource Glyph}" FontSize="22" />
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="Confirm your phone" Style="{StaticResource SettingTitle}" />
+                                            <TextBlock Text="Approve the same six-digit code on both screens. Your phone is remembered after both devices confirm."
+                                                       Style="{StaticResource Caption}" Margin="0,5,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel Visibility="{Binding IsConnected, Converter={StaticResource VisibleIf}}">
+                                <Grid Margin="0,0,0,28">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" /><ColumnDefinition Width="8" />
+                                        <ColumnDefinition Width="*" /><ColumnDefinition Width="8" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Style="{StaticResource SummaryCard}">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,18">
+                                                <TextBlock Text="Battery" FontWeight="SemiBold" />
+                                                <TextBlock Text="&#xE83F;" Style="{StaticResource Glyph}" Foreground="{DynamicResource SecondaryText}" FontSize="17" HorizontalAlignment="Right" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding BatteryLevelText}" FontSize="27" FontWeight="SemiBold" />
+                                            <Grid Margin="0,8,0,0">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="48" /></Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding ChargingText}" Style="{StaticResource Caption}" Margin="0,0,8,0" />
+                                                <ProgressBar Grid.Column="1" Style="{StaticResource BatteryProgress}" Value="{Binding BatteryLevel, Mode=OneWay}" Maximum="100" Height="4" VerticalAlignment="Center"
+                                                             Foreground="{DynamicResource Accent}" Background="{DynamicResource SwitchTrack}" BorderThickness="0"
+                                                             Visibility="{Binding HasBattery, Converter={StaticResource VisibleIf}}" AutomationProperties.Name="Phone battery percentage" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="2" Style="{StaticResource SummaryCard}">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,18">
+                                                <TextBlock Text="Network" FontWeight="SemiBold" />
+                                                <TextBlock Text="&#xE701;" Style="{StaticResource Glyph}" Foreground="{DynamicResource SecondaryText}" FontSize="17" HorizontalAlignment="Right" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding DataConnectionText}" FontSize="23" FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis" ToolTip="{Binding DataConnectionText}" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding CellularDetailsText}" Style="{StaticResource Caption}" Margin="0,8,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="4" Style="{StaticResource SummaryCard}">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,18">
+                                                <TextBlock Text="Connection" FontWeight="SemiBold" />
+                                                <TextBlock Text="&#xE71B;" Style="{StaticResource Glyph}" Foreground="{DynamicResource SecondaryText}" FontSize="17" HorizontalAlignment="Right" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding Status}" FontSize="23" FontWeight="SemiBold" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding ConnectionSummary}" Style="{StaticResource Caption}" Margin="0,8,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                                <Border x:Name="DesktopMediaCard" Style="{StaticResource Card}" Margin="0,0,0,28"
+                                        Visibility="{Binding HasMedia, Converter={StaticResource VisibleIf}}">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,18">
+                                            <TextBlock Text="Now playing" Style="{StaticResource SettingTitle}" />
+                                            <TextBlock Text="{Binding PlaybackStateText}" Foreground="{DynamicResource SecondaryText}" HorizontalAlignment="Right" FontSize="12" />
+                                        </Grid>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                            <Grid Margin="0,0,20,0">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                <Border Width="60" Height="64" CornerRadius="4" Background="{DynamicResource AccentSurface}" Margin="0,0,16,0">
+                                                    <TextBlock Text="&#xE8D6;" Style="{StaticResource Glyph}" FontSize="25" Foreground="{DynamicResource AccentInk}" HorizontalAlignment="Center" />
+                                                </Border>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Source}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Source}" Margin="0,0,0,4" />
+                                                    <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}" />
+                                                    <TextBlock Text="{Binding Artist}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Artist}" Margin="0,4,0,0" />
+                                                </StackPanel>
+                                            </Grid>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Style="{StaticResource RoundMediaButton}" Command="{Binding Previous}" ToolTip="Previous track" AutomationProperties.Name="Previous track" Margin="0,0,6,0">
+                                                    <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource Icon}" Data="M 3,4 L 6,4 L 6,20 L 3,20 Z M 20,4 L 8,12 L 20,20 Z" />
+                                                </Button>
+                                                <Button Style="{StaticResource RoundMediaButton}" Width="48" Height="48" Background="{DynamicResource Accent}" Command="{Binding PlayPause}" ToolTip="{Binding PlaybackLabel}" AutomationProperties.Name="{Binding PlaybackLabel}">
+                                                    <Path Width="18" Height="18" Stretch="Uniform" Fill="{DynamicResource AccentText}" Data="{Binding PlaybackPath}" />
+                                                </Button>
+                                                <Button Style="{StaticResource RoundMediaButton}" Command="{Binding Next}" ToolTip="Next track" AutomationProperties.Name="Next track" Margin="6,0,0,0">
+                                                    <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource Icon}" Data="M 18,4 L 21,4 L 21,20 L 18,20 Z M 4,4 L 16,12 L 4,20 Z" />
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="20" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Sound &amp; focus" Style="{StaticResource SectionHeading}" />
+                                        <Border Style="{StaticResource SettingRow}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                <TextBlock Text="&#xE708;" Style="{StaticResource Glyph}" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
+                                                    <TextBlock Text="Do Not Disturb" Style="{StaticResource SettingTitle}" />
+                                                    <TextBlock Text="Current phone state" Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Text="{Binding Dnd}" VerticalAlignment="Center" FontWeight="SemiBold" AutomationProperties.Name="Do Not Disturb state" />
+                                            </Grid>
+                                        </Border>
+                                        <Border Style="{StaticResource SettingRow}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                <TextBlock Text="&#xE767;" Style="{StaticResource Glyph}" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
+                                                    <TextBlock Text="Sound mode" Style="{StaticResource SettingTitle}" />
+                                                    <TextBlock Text="Your phone’s sound profile" Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Text="{Binding Sound}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                            </Grid>
+                                        </Border>
+                                        <Border Style="{StaticResource SettingRow}" Visibility="{Binding CanControlDndRule, Converter={StaticResource VisibleIf}}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                <TextBlock Text="&#xE7F4;" Style="{StaticResource Glyph}" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
+                                                    <TextBlock Text="Companion DND" Style="{StaticResource SettingTitle}" />
+                                                    <TextBlock Text="Only Unity Connect’s phone rule" Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                                                </StackPanel>
+                                                <Button Grid.Column="2" Style="{StaticResource SyncSwitch}" Tag="{Binding IsDndRuleActive}" Command="{Binding ToggleDndRule}"
+                                                        ToolTip="{Binding DndRuleAction}" AutomationProperties.Name="{Binding DndRuleAction}" AutomationProperties.HelpText="{Binding DndRuleState}" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Clipboard" Style="{StaticResource SectionHeading}" />
+                                        <Border Style="{StaticResource SettingRow}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                <TextBlock Text="&#xE8C8;" Style="{StaticResource Glyph}" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
+                                                    <TextBlock Text="Sync clipboard" Style="{StaticResource SettingTitle}" />
+                                                    <TextBlock Text="{Binding ClipboardStatus}" Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                                                </StackPanel>
+                                                <Button Grid.Column="2" Style="{StaticResource SyncSwitch}" Tag="{Binding ClipboardEnabled}" Command="{Binding ToggleClipboard}"
+                                                        ToolTip="{Binding ClipboardAction}" AutomationProperties.Name="{Binding ClipboardAction}" AutomationProperties.HelpText="{Binding ClipboardStatus}" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                        <Border Style="{StaticResource SettingRow}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                <TextBlock Text="&#xE72E;" Style="{StaticResource Glyph}" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="Private by default" Style="{StaticResource SettingTitle}" />
+                                                    <TextBlock Text="New text only, between trusted devices. No stored clipboard history." Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel x:Name="ConnectionPage" Visibility="Collapsed">
+                            <TextBlock Text="Your phone" Style="{StaticResource SectionHeading}" />
+                            <Border Style="{StaticResource SettingRow}" Margin="0,0,0,28">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="40" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="&#xE8EA;" Style="{StaticResource Glyph}" FontSize="24" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,20,0">
+                                        <TextBlock Text="{Binding Status}" Style="{StaticResource SettingTitle}" />
+                                        <TextBlock Text="Connect over Wi-Fi or Bluetooth." Style="{StaticResource Caption}" Margin="0,5,0,0" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Style="{StaticResource ActionButton}" Content="Manage phone" Click="OnConnectPhone" VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                            <TextBlock Text="Connection &amp; trust" Style="{StaticResource SectionHeading}" />
+                            <Border Style="{StaticResource SettingRow}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="40" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="&#xE71B;" Style="{StaticResource Glyph}" FontSize="22" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Two ways to connect" Style="{StaticResource SettingTitle}" />
+                                        <TextBlock Text="Use the same Wi-Fi network or keep your phone nearby for Bluetooth. Open Unity Connect on your phone before connecting."
+                                                   Style="{StaticResource Caption}" Margin="0,5,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource SettingRow}" Margin="0,0,0,28">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="40" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="&#xE72E;" Style="{StaticResource Glyph}" FontSize="22" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Confirm the same code" Style="{StaticResource SettingTitle}" />
+                                        <TextBlock Text="Check the six-digit code on both screens. Your phone is remembered only after both devices approve."
+                                                   Style="{StaticResource Caption}" Margin="0,5,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                            <TextBlock Text="Windows app" Style="{StaticResource SectionHeading}" />
+                            <Border Style="{StaticResource SettingRow}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="40" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="&#xE737;" Style="{StaticResource Glyph}" FontSize="22" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Available in your tray" Style="{StaticResource SettingTitle}" />
+                                        <TextBlock Text="Closing this window keeps Unity Connect running. Use the tray icon for quick controls, Open Unity Connect to return, or Exit to quit."
+                                                   Style="{StaticResource Caption}" Margin="0,5,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+                <TextBlock Grid.Row="2" Text="{Binding Footer}" Style="{StaticResource Caption}" FontSize="11" Margin="0,18,0,0"
+                           AutomationProperties.LiveSetting="Polite" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

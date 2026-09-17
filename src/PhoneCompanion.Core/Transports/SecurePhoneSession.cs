@@ -111,7 +111,7 @@ public sealed class SecurePhoneSession : IAuthenticatedPhoneSession
             _tx.Encrypt(nonce, frame.Span, record.AsSpan(8, frame.Length), record.AsSpan(8 + frame.Length, 16), Combine(_transcript, record[..8]));
             await _wire.WriteAsync(record, linked.Token).ConfigureAwait(false);
         }
-        catch { _lifetime.Cancel(); await _wire.DisposeAsync(); throw; }
+        catch { await DisposeAsync(); throw; }
         finally { _writes.Release(); }
     }
     private async Task<byte[]> ReadRecordAsync(CancellationToken token)
@@ -158,7 +158,7 @@ public sealed class SecurePhoneSession : IAuthenticatedPhoneSession
                 await SendFrameAsync(Pack(new { version = 1, type = "ping" }), token);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-        catch { _lifetime.Cancel(); await _wire.DisposeAsync(); }
+        catch { await DisposeAsync(); }
     }
     public async ValueTask DisposeAsync()
     {

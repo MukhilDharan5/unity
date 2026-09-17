@@ -20,6 +20,7 @@ public partial class App : Application
     private PhoneStateManager? _manager;
     private PhoneViewModel? _viewModel;
     private FlyoutWindow? _flyout;
+    private MainWindow? _desktop;
     private TrayIconController? _tray;
     private SystemThemeService? _theme;
     private ClipboardSyncCoordinator? _clipboard;
@@ -44,19 +45,29 @@ public partial class App : Application
         _clipboard = new ClipboardSyncCoordinator(_manager, new WindowsClipboardService(Dispatcher), Dispatcher);
         _viewModel = new PhoneViewModel(_manager, Dispatcher, _clipboard);
         _flyout = new FlyoutWindow { DataContext = _viewModel };
+        _desktop = new MainWindow { DataContext = _viewModel };
+        MainWindow = _desktop;
         _tray = new TrayIconController();
         _tray.ToggleRequested += () => _flyout.ToggleAtCursor();
         _tray.ShowRequested += () => _flyout.ShowAtCursor();
         _tray.ConnectRequested += ShowPairing;
+        _tray.OpenRequested += ShowDesktop;
         _tray.DemoRequested += async enabled => await SetDemoAsync(enabled);
         _tray.ExitRequested += async () => await ExitAsync();
         _viewModel.PropertyChanged += (_, _) => { _tray?.SetStatus(_viewModel.Status); _tray?.SetDemo(_viewModel.IsDemo); };
         _showWait = ThreadPool.RegisterWaitForSingleObject(_showSignal,
-            (_, _) => Dispatcher.BeginInvoke(() => { if (!_exiting) _flyout.ShowAtCursor(); }), null, Timeout.Infinite, false);
+            (_, _) => Dispatcher.BeginInvoke(ShowDesktop), null, Timeout.Infinite, false);
 
         if (_connectionStore.Load() is not null) StartReconnectLoop();
         if (e.Args.Contains("--demo", StringComparer.OrdinalIgnoreCase)) await SetDemoAsync(true);
-        if (e.Args.Contains("--show", StringComparer.OrdinalIgnoreCase)) _flyout.ShowAtCursor();
+        if (!e.Args.Contains("--tray", StringComparer.OrdinalIgnoreCase)) ShowDesktop();
+        if (e.Args.Contains("--flyout", StringComparer.OrdinalIgnoreCase)) _flyout.ShowAtCursor();
+    }
+    internal void ShowDesktop()
+    {
+        if (_exiting) return;
+        _flyout?.Hide();
+        _desktop?.ShowDashboard();
     }
     private void OnPhoneStateChanged(PhoneCompanion.Core.Models.PhoneState state)
     {
@@ -111,7 +122,12 @@ public partial class App : Application
         StopReconnectLoop();
         if (_pairing is { IsVisible: true }) { _pairing.Activate(); return; }
         _pairing = new PairingWindow(_manager, _connectionStore);
-        _pairing.Connected += () => _flyout?.ShowAtCursor();
+        if (_desktop?.IsVisible == true) _pairing.Owner = _desktop;
+        _pairing.Connected += () =>
+        {
+            if (_desktop?.IsVisible == true) _desktop.Activate();
+            else _flyout?.ShowAtCursor();
+        };
         _pairing.Closed += (_, _) => { _pairing = null; StartReconnectLoop(); };
         _pairing.Show(); _pairing.Activate();
     }
@@ -135,6 +151,7 @@ public partial class App : Application
         _clipboard?.Dispose(); _clipboard = null;
         if (_manager is not null) { _manager.StateChanged -= OnPhoneStateChanged; await _manager.DisposeAsync(); }
         _flyout?.CloseForExit();
+        _desktop?.CloseForExit();
         Shutdown();
     }
     protected override void OnExit(ExitEventArgs e)

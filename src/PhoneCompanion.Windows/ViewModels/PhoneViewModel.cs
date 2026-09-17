@@ -50,6 +50,39 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         ConnectionState.Connected => "Connected", _ => "Not connected"
     };
     public string BatteryText => _state.Battery is { } b ? $"{b.Level}% · {(b.Charging ? "Charging" : "Not charging")}" : "Battery unavailable";
+    public string BatteryLevelText => _state.Battery is { } b ? $"{b.Level}%" : "—";
+    public int BatteryLevel => _state.Battery?.Level ?? 0;
+    public bool HasBattery => _state.Battery is not null;
+    public string ConnectionSummary => IsDemo ? "Sample data preview" : _state.Connection switch
+    {
+        ConnectionState.Connected => "Your phone is available",
+        ConnectionState.Connecting => "Looking for your phone",
+        _ => "Connect to get started"
+    };
+    public string ChargingText => _state.Battery is { } b ? (b.Charging ? "Charging" : "Not charging") : "Battery unavailable";
+    public string DataConnectionText => _state.Cellular is not { } c ? "Unavailable" : c.IsUsingCellularData ? "Mobile data" : c.IsUsingWifi switch
+    {
+        true => "Wi-Fi", false => "No data connection", null => "Unavailable"
+    };
+    public string CellularDetailsText
+    {
+        get
+        {
+            if (_state.Cellular is not { } c) return "Connection details unavailable";
+            var network = c.Network switch
+            {
+                CellularNetwork.TwoG => "2G", CellularNetwork.ThreeG => "3G", CellularNetwork.FourG => "LTE",
+                CellularNetwork.FiveG => "5G", CellularNetwork.Cellular => "Cellular", _ => null
+            };
+            var signal = c.Signal switch
+            {
+                SignalStrength.None => "No signal", SignalStrength.Poor => "Weak signal", SignalStrength.Fair => "Fair signal",
+                SignalStrength.Good => "Good signal", SignalStrength.Excellent => "Strong signal", _ => null
+            };
+            var details = string.Join(" · ", new[] { network, signal }.Where(value => value is not null));
+            return details.Length > 0 ? details : "Cellular details unavailable";
+        }
+    }
     public string CellularText
     {
         get

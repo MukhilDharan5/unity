@@ -35,6 +35,7 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.4"
     }
+    sourceSets["test"].resources.srcDir(rootProject.file("../tests/Fixtures"))
 }
 
 dependencies {

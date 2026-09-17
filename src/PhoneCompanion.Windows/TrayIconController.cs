@@ -15,6 +15,7 @@ public sealed class TrayIconController : IDisposable
     public event Action? ToggleRequested;
     public event Action? ShowRequested;
     public event Action? ConnectRequested;
+    public event Action? OpenRequested;
     public event Action<bool>? DemoRequested;
     public event Action? ExitRequested;
     public bool Visible => _tray.Visible;
@@ -22,6 +23,11 @@ public sealed class TrayIconController : IDisposable
     {
         _icon = CreateIcon();
         _menu = new Forms.ContextMenuStrip();
+        _menu.Font = new Font("Segoe UI", 9);
+        _menu.ShowImageMargin = false;
+        _menu.ShowCheckMargin = true;
+        _menu.Opening += (_, _) => ApplyMenuTheme();
+        _menu.Items.Add("Open Unity Connect", null, (_, _) => OpenRequested?.Invoke());
         _menu.Items.Add("Show phone", null, (_, _) => ShowRequested?.Invoke());
         _menu.Items.Add("Connect phone", null, (_, _) => ConnectRequested?.Invoke());
         _demo = new Forms.ToolStripMenuItem("Use sample data") { CheckOnClick = false };
@@ -29,12 +35,39 @@ public sealed class TrayIconController : IDisposable
         _menu.Items.Add(_demo);
         _menu.Items.Add(new Forms.ToolStripSeparator());
         _menu.Items.Add("Exit", null, (_, _) => ExitRequested?.Invoke());
+        foreach (Forms.ToolStripItem item in _menu.Items) item.Padding = new Forms.Padding(7,5,12,5);
+        ApplyMenuTheme();
         _tray = new Forms.NotifyIcon { Text = "Phone Companion · Not connected", Icon = _icon, ContextMenuStrip = _menu, Visible = true };
         _tray.MouseClick += (_, e) => { if (e.Button == Forms.MouseButtons.Left) ToggleRequested?.Invoke(); };
     }
     public void SetDemo(bool enabled) => _demo.Checked = enabled;
     public void SetBusy(bool busy) => _demo.Enabled = !busy;
     public void SetStatus(string status) => _tray.Text = $"Phone Companion · {status}";
+    private void ApplyMenuTheme()
+    {
+        var dark = SystemThemeService.ReadSystemTheme() == AppTheme.Dark;
+        _menu.BackColor = dark ? Color.FromArgb(32,32,32) : Color.White;
+        _menu.ForeColor = dark ? Color.FromArgb(245,245,245) : Color.FromArgb(10,10,11);
+        _menu.Renderer = new Forms.ToolStripProfessionalRenderer(new MenuColors(dark));
+        foreach (Forms.ToolStripItem item in _menu.Items) item.ForeColor = _menu.ForeColor;
+    }
+    private sealed class MenuColors(bool dark) : Forms.ProfessionalColorTable
+    {
+        private Color Background => dark ? Color.FromArgb(32,32,32) : Color.White;
+        private Color Highlight => dark ? Color.FromArgb(45,45,45) : Color.FromArgb(231,231,231);
+        private Color Border => dark ? Color.FromArgb(61,61,61) : Color.FromArgb(229,229,229);
+        public override Color ToolStripDropDownBackground => Background;
+        public override Color ImageMarginGradientBegin => Background;
+        public override Color ImageMarginGradientMiddle => Background;
+        public override Color ImageMarginGradientEnd => Background;
+        public override Color MenuItemSelected => Highlight;
+        public override Color MenuItemBorder => Highlight;
+        public override Color MenuBorder => Border;
+        public override Color SeparatorDark => Border;
+        public override Color SeparatorLight => Border;
+        public override Color CheckBackground => Highlight;
+        public override Color CheckSelectedBackground => Highlight;
+    }
     private static Icon CreateIcon()
     {
         using var bitmap = new Bitmap(32, 32);

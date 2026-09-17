@@ -1,6 +1,8 @@
 # Android companion validation report
 
-## Automated
+Current Stage 1B-A1 verification (17 September 2026) is in [testing.md](testing.md): AGP is 8.2.2; 30 JVM tests pass with one optional skip, including ten production owner/collection regressions. Both runtimes retain the 67 shared application fixture pass, debug assembly succeeds, and lint has 0 errors/5 warnings (one obsolete custom check plus four dependency notices). The separately run .NET/Kotlin secure-session TCP case last passed in Stage 0. The historical results below came from the earlier toolchain and do not supersede current codec/security findings.
+
+## Historical automated results
 
 - `:app:compileDebugKotlin`: passed.
 - `:app:testDebugUnitTest`: passed, **15 regular tests / 0 failures / 0 errors**. The opt-in cross-runtime case is skipped during an ordinary unit run and passed separately against the actual .NET implementation.

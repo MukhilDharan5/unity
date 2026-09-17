@@ -1,0 +1,55 @@
+# Android implementation and constraints
+
+Status: updated through Stage 1B-A1, 17 September 2026. Sources are in `Unity_Connect_Android/app/src/main/java/com/unity/connect/android/`. See [PROGRESS.md](../PROGRESS.md) for continuation.
+
+## Runtime and UI
+
+Android 12/API 31 is the declared minimum; compile/target API is 34. The app uses Kotlin 1.9.20, Compose/Material 3, coroutines and kotlinx serialization. `MainActivity` starts the foreground connection service on launch, before its Compose runtime-permission action. `AppViewModel` observes a static service flow and calls static service actions. There is no bound-service/repository abstraction or user-facing stop-service switch.
+
+The UI provides pairing code comparison, connection status/address, reconnect/forget, a combined device-permission request, settings shortcuts for media/DND access, companion-rule control and clipboard opt-in/manual send. Theme palettes are hard-coded light/dark schemes rather than dynamic system colors. Device access is requested as one bundle; missing optional phone-state permission continues to show the generic access action.
+
+`ConnectionService` is non-exported, returns `START_STICKY` and hosts GATT/TCP listeners, secure pairing, public trust preferences, notifications and feature controllers. `PhoneSessionOwner` now reserves each pending/connected route, owns its coroutine job and guarded pipe, and fences session publication/trust persistence by generation. Forget invalidates admission before closing/canceling pending work; destruction also prevents further admission. Parent-scope cancellation closes pipes to interrupt blocking IO. Handshake guard, watchdog and heartbeat are children of the route job. Trusted service starts listen automatically. New pairing accepts approvals for two minutes, but expiry does not itself stop listeners/advertising. There is no boot receiver and no tested guarantee of unattended recovery after OEM process termination.
+
+Stage 1B-A2 remains: listener startup/shutdown resource publication and stale provider callback/endpoint behavior. In particular, LAN initialization can overlap stop before its socket/listener fields are published. Session admission fencing prevents a forgotten handshake from republishing trust, but does not prove listener resources/advertising stopped correctly.
+
+## Permissions
+
+| Access | Declared / requested use | Current behavior |
+| --- | --- | --- |
+| Internet/network/Wi-Fi state | LAN listener and network/address reporting | Declared normal permissions, including `CHANGE_NETWORK_STATE` |
+| Nearby devices | `BLUETOOTH_CONNECT`, `BLUETOOTH_ADVERTISE` | Runtime UI request; GATT startup catches unavailable/denied access |
+| Phone state | `READ_PHONE_STATE` | Runtime UI request; generation/signal become unknown when unavailable |
+| Notifications | `POST_NOTIFICATIONS` on API 33+ | Included in runtime UI request; foreground notification is built by service |
+| Foreground service | General and `FOREGROUND_SERVICE_CONNECTED_DEVICE` | Service declares `connectedDevice`; manifest network permission satisfies one documented prerequisite |
+| Notification policy | `ACCESS_NOTIFICATION_POLICY` plus settings grant | Enables only the application's automatic DND rule |
+| Notification listener | Exported listener service protected by system bind permission | Explicit settings shortcut for active media-session access; no unrelated notification content handling |
+
+No location, system-settings-write, screen-capture, accessibility, Shizuku or ADB permissions/integrations are added. Future target-SDK/minimum-version changes require a compatibility decision and device tests.
+
+Android connected-device foreground services have specific manifest/runtime prerequisites; declarations alone do not guarantee background execution or OEM survival. The implementation's `CHANGE_NETWORK_STATE` declaration is one accepted prerequisite. See [Android foreground service types](https://developer.android.com/develop/background-work/services/fgs/service-types#connected-device).
+
+## State/event collection
+
+`StateCollector` uses battery and ringer-mode broadcasts, default-network callbacks, active media-session and media-controller callbacks, plus the DND controller's state flow. `PhoneStateCollection` owns observer replacement and latest state. It cancels after the last route closes/Forget, waits for prior observer cleanup before replacement, and checks collection identity/session generation before emitting snapshots. Rapid restart retains the cleanup chain; an old finally block cannot clear new state. The service sends normalized-category full snapshots on changes, not a 500 ms polling loop.
+
+Cellular generation/signal are sampled when default-network callbacks occur. There is no `TelephonyCallback` listener, so radio signal or generation can change without a snapshot. API 31 has a [signal-strength callback](https://developer.android.com/reference/android/telephony/TelephonyCallback.SignalStrengthsListener); integrating it with permission and subscription lifecycle is proposed work.
+
+Media selection prefers playing, then paused controllers. `MediaMetadataNormalizer` replaces control characters with spaces, trims blank values to unavailable, and bounds source to 80 and title/artist to 256 UTF-16 code units without cutting a surrogate pair. `StateCollector` applies it before building protocol state. Controller selection compares object references rather than tokens, potentially replacing callbacks unnecessarily. The dispatcher targets the selected controller; actual app action support/session disappearance needs integration tests.
+
+## DND and clipboard
+
+`CompanionDndController` creates/owns one `AutomaticZenRule` and changes its condition through `CompanionDndConditionProvider`. Effective DND is read separately. No global interruption-filter setter exists in this code. Rule condition is stored in preferences; actual provider binding, manual overrides and system rule settings remain device-test items.
+
+Clipboard sync is independently opt-in, off by default, persists only its preference, and keeps a bounded 64-ID in-memory suppression window. The app reads its clipboard only through the visible send action; incoming authenticated text can be applied while enabled. Ordinary background apps cannot freely read the clipboard on Android 10+, which constrains automatic phone-to-PC synchronization. See [Android clipboard privacy](https://developer.android.com/about/versions/10/privacy/changes#clipboard-data).
+
+Sensitive clipboard marker filtering, history and support/enablement negotiation do not exist. `coerceToText` may obtain a text representation of a clip rather than checking that its original content was plain text.
+
+## Trust and routes
+
+`IdentityStore` creates a P-256 Android Keystore signing identity without mandatory hardware-backed attestation or user authentication for each connection. Public peer identity/name live in private `secure_peers_v1` preferences. Backup is disabled in the manifest. Trust is committed after secure consent/hello, but the returned commit result is ignored.
+
+GATT and TCP carry the same bespoke v1 secure records. LAN binds port 38471 and advertises `_phonecomp._tcp.`; the UI displays an IPv4 Wi-Fi/hotspot address. Service address refresh is not a dedicated network-address observer. Two routes can authenticate; Wi-Fi has application priority. Both routes heartbeat every 10 seconds; a 5-second watchdog closes a route once received-record silence exceeds 35 seconds.
+
+The owner selects authenticated Wi-Fi before BLE, preserves BLE after Wi-Fi closes, and closes an ambiguous failed send without retrying it on another route. Incoming features are accepted only from the current active lease. Secure-session and pipe close are idempotent; encryption/key erasure remains separate debt. Ten JVM regressions exercise actual owner/collection helpers, including real secure handshakes with fake pipes. Android Service/SharedPreferences/system interactions still need device/instrumentation validation.
+
+The codec remains a serialization singleton rather than a replaceable protocol interface. `V1MessageValidator` enforces the existing strict application contract, including nested/escaped duplicate keys and canonical clipboard UUIDs. Named application encoders and incoming command decoding use it; malformed command input returns null. Generic legacy serializers are structural helpers, and unused acknowledgment models are not a live contract. Both runtimes pass 67 shared application fixtures; see [testing.md](testing.md). Secure-envelope/control parsing runs before this command boundary and was not consolidated in Stage 1A. Proposed work remains coordinator extraction, event-aware capability/permissions, lifecycle tests and approved secure-channel integration. Physical BLE, DND, media, clipboard, sleep, permission revocation and OEM behavior remain unverified.

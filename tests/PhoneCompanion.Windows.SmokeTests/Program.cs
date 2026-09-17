@@ -9,6 +9,7 @@ using PhoneCompanion.Core.Protocol;
 using PhoneCompanion.Core.State;
 using PhoneCompanion.Core.Transports;
 using PhoneCompanion.Windows.Clipboard;
+using PhoneCompanion.Windows.Connection;
 using PhoneCompanion.Windows.ViewModels;
 
 namespace PhoneCompanion.Windows.SmokeTests;
@@ -34,12 +35,16 @@ internal static class Program
     }
     private static async Task RunAsync(string output)
     {
+        await LiveTransportChecks.RunAsync();
         var codec = new JsonPhoneMessageCodec();
         await using var manager = new PhoneStateManager(codec);
         var testClipboard = new TestClipboard();
         using var clipboardSync = new ClipboardSyncCoordinator(manager, testClipboard, Dispatcher.CurrentDispatcher);
         using var model = new PhoneViewModel(manager, Dispatcher.CurrentDispatcher, clipboardSync);
         var flyout = new FlyoutWindow { DataContext = model };
+        var desktop = new MainWindow { DataContext = model };
+        var desktopMedia = (Border)desktop.FindName("DesktopMediaCard");
+        var pairing = new PairingWindow(manager, new IdentityAndTrustStore());
         var mediaCard = (Border)(flyout.FindName("MediaCard") ?? throw new Exception("Media card was not created."));
         using (var tray = new TrayIconController())
         {
@@ -51,20 +56,44 @@ internal static class Program
         Check(model.ClipboardStatus == "Off", "Clipboard sync defaults off");
         Check(!model.HasMedia && mediaCard.Visibility == Visibility.Collapsed, "Player hidden without an active media session");
         Render(flyout, output, "disconnected", 1);
+        Check(desktopMedia.Visibility == Visibility.Collapsed, "Desktop hides unavailable media");
+        RenderDesktop(desktop, output, "desktop-disconnected");
+        RenderPairing(pairing, output, "pairing-light");
 
         await manager.SetTransportAsync(new MockPhoneTransport(codec));
         await Settle();
         Check(model.Status == "Sample" && model.BatteryText == "68% · Not charging", "Sample clearly identified");
         Check(model.CellularText == "Wi-Fi · 5G · Good signal" && model.Dnd == "Off" && model.Sound == "Vibrate", "All phone status fields");
+        Check(model.BatteryLevelText == "68%" && model.ChargingText == "Not charging" && model.DataConnectionText == "Wi-Fi" && model.CellularDetailsText == "5G · Good signal", "Desktop summaries preserve phone values");
         Check(model.PlaybackLabel == "Pause" && model.PlaybackStateText == "Playing" && model.PlayPause.CanExecute(null),
             "Media playback state and controls enabled");
         Check(model.HasMedia && mediaCard.Visibility == Visibility.Visible, "Player shown for an active media session");
         Render(flyout, output, "sample-light", 1);
+        Check(desktopMedia.Visibility == Visibility.Visible && ReferenceEquals(desktop.DataContext, flyout.DataContext), "Desktop and tray share live state and controls");
+        RenderDesktop(desktop, output, "desktop-light");
+        RenderDesktop(desktop, output, "desktop-light-150pct", scale: 1.5);
+        RenderDesktop(desktop, output, "desktop-small", width: 784, height: 540);
+        var desktopScroll = (ScrollViewer)desktop.FindName("PhoneScrollViewer");
+        var verticalBar = (System.Windows.Controls.Primitives.ScrollBar)desktopScroll.Template.FindName("PART_VerticalScrollBar", desktopScroll);
+        Check(verticalBar.Width == 10, "Desktop uses the themed slim scrollbar");
+        desktopScroll.ScrollToEnd();
+        await Settle();
+        Check(desktopScroll.VerticalOffset > 0, "Small desktop scrolls to all phone controls");
+        RenderDesktop(desktop, output, "desktop-small-scrolled", width: 784, height: 540);
+        desktopScroll.ScrollToTop();
+        await Settle();
         Render(flyout, output, "sample-light-150pct", 1.5);
         SystemThemeService.ApplyPalette(Application.Current.Resources, AppTheme.Dark);
         await Settle();
-        Check(((SolidColorBrush)Application.Current.Resources["WindowBackground"]).Color == Color.FromRgb(9, 11, 14), "Dark palette applied");
+        Check(((SolidColorBrush)Application.Current.Resources["WindowBackground"]).Color == Color.FromRgb(32, 32, 32), "Dark palette applied");
         Render(flyout, output, "sample-dark", 1);
+        RenderDesktop(desktop, output, "desktop-dark");
+        RenderPairing(pairing, output, "pairing-dark");
+        ((StackPanel)pairing.FindName("ConnectPanel")).Visibility = Visibility.Collapsed;
+        ((StackPanel)pairing.FindName("CodePanel")).Visibility = Visibility.Visible;
+        ((TextBlock)pairing.FindName("Code")).Text = "123456";
+        RenderPairing(pairing, output, "pairing-code-dark");
+        pairing.Close();
         SystemThemeService.ApplyPalette(Application.Current.Resources, AppTheme.Light);
         await Settle();
         Check(((SolidColorBrush)Application.Current.Resources["WindowBackground"]).Color == Colors.White, "Light palette applied");
@@ -74,11 +103,14 @@ internal static class Program
         model.ToggleClipboard.Execute(null);
         await Eventually(() => model.ClipboardEnabled);
         Check(model.ClipboardStatus == "Waiting", "Clipboard toggle waits safely without a trusted phone");
+        var clipboardSwitch = Descendants<Button>((DependencyObject)desktop.Content).Single(b => ReferenceEquals(b.Command, model.ToggleClipboard));
+        Check(((FrameworkElement)clipboardSwitch.Template.FindName("Thumb", clipboardSwitch)).HorizontalAlignment == HorizontalAlignment.Right, "Clipboard switch visibly reflects opt-in");
 
         model.PlayPause.Execute(null);
         await Eventually(() => model.PlaybackLabel == "Play" && model.PlayPause.CanExecute(null));
         Check(model.PlaybackStateText == "Paused", "Paused state is displayed");
         Check(!model.HasMedia && mediaCard.Visibility == Visibility.Collapsed, "Paused media player stays hidden");
+        Check(desktopMedia.Visibility == Visibility.Collapsed, "Desktop hides paused media");
         var first = model.Title;
         model.Next.Execute(null);
         await Eventually(() => model.Title != first && model.Next.CanExecute(null));
@@ -102,6 +134,7 @@ internal static class Program
         Check(model.Dnd == "On" && model.DndRuleState == "Off", "DND waits for phone confirmation");
         live.Emit(codec.Encode(new DndUpdate(new(true, true, true))));
         await Eventually(() => model.DndRuleState == "On");
+        RenderDesktop(desktop, output, "desktop-live-focus");
         model.ToggleDndRule.Execute(null);
         await Eventually(() => live.Sent.Any(frame => codec.Decode(frame).Message == new DndRuleCommandMessage(false)));
         live.Emit(codec.Encode(new DndUpdate(new(true, false, true))));
@@ -115,6 +148,10 @@ internal static class Program
         await Settle();
         Check(live.Sent.Count == sentBeforeRemote, "Remote clipboard update is not echoed back");
         Render(flyout, output, "long-metadata", 1);
+        live.Emit(codec.Encode(new MediaUpdate(new("A source with a very long name that should be clipped neatly", new string('W', 256), "An artist with a long name to check ellipsis and available space", true, new(true, false, true)))));
+        await Settle();
+        RenderDesktop(desktop, output, "desktop-long-metadata");
+        RenderDesktop(desktop, output, "desktop-long-metadata-small", width: 784, height: 540);
         live.Emit(codec.Encode(new MediaUpdate(null)));
         await Settle();
         Check(model.Title == "Nothing playing" && !model.PlayPause.CanExecute(null) && !model.HasMedia,
@@ -127,6 +164,19 @@ internal static class Program
         await Settle();
         Check(model.Dnd == "Unavailable" && model.Sound == "Unavailable" && !model.Next.CanExecute(null), "Disconnect resets display");
         flyout.CloseForExit();
+        var connectionButton = (Button)desktop.FindName("ConnectionNavigation");
+        connectionButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Check(((StackPanel)desktop.FindName("ConnectionPage")).Visibility == Visibility.Visible, "Connection sidebar navigation works");
+        Check(((TextBlock)desktop.FindName("PageTitle")).Text == "Connection" && connectionButton.Tag?.ToString() == "Selected", "Sidebar selection and page heading agree");
+        RenderDesktop(desktop, output, "desktop-connection");
+        ((Button)desktop.FindName("PhoneNavigation")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Check(((StackPanel)desktop.FindName("PhonePage")).Visibility == Visibility.Visible && desktopMedia.Visibility == Visibility.Collapsed, "Phone page restores and clears disconnected media");
+        desktop.Show();
+        desktop.Close();
+        Check(!desktop.IsVisible, "Closing desktop hides it without ending the tray app");
+        desktop.ShowDashboard();
+        Check(desktop.IsVisible, "Desktop reopens after hiding to tray");
+        desktop.CloseForExit();
         Console.WriteLine($"UI smoke checks passed. Rendered flyouts: {output}");
     }
     private static void Check(bool condition, string name)
@@ -149,6 +199,35 @@ internal static class Program
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var stream = File.Create(Path.Combine(output, name + ".png")); encoder.Save(stream);
         Check(size.Width <= 368 && size.Height <= 600, $"{name}: compact layout {size.Width:0} × {size.Height:0}");
+    }
+    private static void RenderDesktop(MainWindow window, string output, string name, int width = 1104, int height = 750, double scale = 1)
+    {
+        var content = (FrameworkElement)window.Content;
+        var size = new Size(width, height);
+        content.Measure(size); content.Arrange(new Rect(size)); content.UpdateLayout();
+        var bitmap = new RenderTargetBitmap((int)(width * scale), (int)(height * scale), 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+        bitmap.Render(content);
+        var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(Path.Combine(output, name + ".png")); encoder.Save(stream);
+        Check(content.ActualWidth == size.Width, $"{name}: desktop layout rendered");
+        var buttonsFit = Descendants<Button>(content).Where(b => b.ActualWidth > 0).All(button =>
+        {
+            var position = button.TransformToAncestor(content).Transform(new Point());
+            return position.X >= -1 && position.X + button.ActualWidth <= width + 1;
+        });
+        Check(buttonsFit, $"{name}: all controls fit horizontally");
+    }
+    private static void RenderPairing(PairingWindow window, string output, string name)
+    {
+        var content = (FrameworkElement)window.Content;
+        content.Measure(new Size(444, double.PositiveInfinity));
+        var size = new Size(444, content.DesiredSize.Height);
+        content.Arrange(new Rect(size)); content.UpdateLayout();
+        var bitmap = new RenderTargetBitmap(444, (int)Math.Ceiling(size.Height), 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(content);
+        var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(Path.Combine(output, name + ".png")); encoder.Save(stream);
+        Check(size.Height < 650, $"{name}: pairing dialog fits");
     }
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
     {

@@ -81,7 +81,7 @@ class MessageCodecTest {
             media = MediaState(
                 source = "Music",
                 title = "🎵 Music with Emoji & 🎵 Symbols 𝄞",
-                artist = "Artist \n \t \", Special",
+                artist = "Artist · \", Special",
                 isPlaying = false,
                 capabilities = Capabilities(playPause = true, nextTrack = true, previousTrack = true)
             ),
@@ -93,7 +93,7 @@ class MessageCodecTest {
         val json = MessageCodec.encodePhoneSnapshot(snapshot)
         val decoded = MessageCodec.decodePhoneSnapshot(json)
         assertEquals("🎵 Music with Emoji & 🎵 Symbols 𝄞", decoded.media?.title)
-        assertEquals("Artist \n \t \", Special", decoded.media?.artist)
+        assertEquals("Artist · \", Special", decoded.media?.artist)
     }
 
     @Test

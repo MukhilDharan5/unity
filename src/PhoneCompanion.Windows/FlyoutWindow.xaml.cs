@@ -58,6 +58,7 @@ public partial class FlyoutWindow : Window
     {
         Hide(); (Application.Current as App)?.ShowPairing();
     }
+    private void OnOpenDesktop(object sender, RoutedEventArgs e) => (Application.Current as App)?.ShowDesktop();
     protected override void OnClosing(CancelEventArgs e)
     { if (!_allowClose) { e.Cancel = true; Hide(); } base.OnClosing(e); }
     public void CloseForExit() { _allowClose = true; Close(); }
