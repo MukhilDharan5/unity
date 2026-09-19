@@ -19,10 +19,12 @@
             <TextBlock Text="Connect your phone" FontSize="25" FontWeight="SemiBold" />
             <TextBlock Text="Open Unity Connect on your phone and tap Start pairing." Style="{StaticResource Caption}" Margin="0,8,0,26" />
             <StackPanel x:Name="ConnectPanel">
+                <Button x:Name="DiscoverButton" Style="{StaticResource PrimaryButton}" Content="Find phone on this network" Height="42" Click="OnDiscover" />
+                <TextBlock Text="Automatic discovery keeps the secure code check. If it does not find your phone, enter the address shown in the Android app." Style="{StaticResource Caption}" FontSize="10" TextWrapping="Wrap" Margin="1,8,0,18" />
                 <TextBlock Text="Phone Wi-Fi address" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,9" />
                 <TextBox x:Name="Endpoint" Height="42" Padding="12,9" FontSize="14" VerticalContentAlignment="Center" AutomationProperties.Name="Phone Wi-Fi address" />
                 <TextBlock Text="Use the address shown in the phone app." Style="{StaticResource Caption}" FontSize="10" Margin="1,7,0,16" />
-                <Button x:Name="WifiButton" Style="{StaticResource PrimaryButton}" Content="Connect over Wi-Fi" Height="42" Click="OnWifi" />
+                <Button x:Name="WifiButton" Style="{StaticResource ActionButton}" Content="Connect to this address" Height="42" Click="OnWifi" />
                 <Grid Margin="0,19"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Border Height="1" Background="{DynamicResource Border}" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="or" Style="{StaticResource Caption}" FontSize="10" Margin="14,0" /><Border Grid.Column="2" Height="1" Background="{DynamicResource Border}" VerticalAlignment="Center" /></Grid>
                 <Button x:Name="BluetoothButton" Style="{StaticResource ActionButton}" Height="42" Click="OnBluetooth"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE702;" FontFamily="Segoe MDL2 Assets" Margin="0,0,8,0" VerticalAlignment="Center" /><TextBlock Text="Find with Bluetooth" /></StackPanel></Button>
             </StackPanel>

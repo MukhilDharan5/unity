@@ -44,7 +44,7 @@ Commands do not optimistically change phone state. A successful write only means
 
 Windows manually selects a LAN endpoint or scans the agreed BLE service and owns one authenticated route at a time. When disconnected from a remembered device it repeatedly tries saved LAN for up to 8 seconds, then BLE for up to 15 seconds, followed by capped backoff. General pairing has a two-minute deadline. BLE scan chooses the first matching advertisement; it does not enumerate and verify all candidates.
 
-Android listens on TCP 38471, advertises mDNS and GATT, and can authenticate both kinds of route. It routes application data through Wi-Fi first and BLE second. Windows has no automatic mDNS browse, in-session route promotion, or independent BLE presence plane. The BLE route currently allows the same 16 KiB logical payloads as LAN.
+Android listens on TCP 38471, advertises mDNS and GATT, and can authenticate both kinds of route. Windows uses bounded mDNS discovery for `_phonecomp._tcp.local`, with saved/manual endpoints as fallback; discovery never establishes trust. Android routes application data through Wi-Fi first and BLE second. Windows has no in-session route promotion or independent BLE presence plane. The BLE route currently allows the same 16 KiB logical payloads as LAN.
 
 ## Proposed foundation consolidation
 

@@ -28,11 +28,11 @@ Choosing **Forget paired phone** on Windows deletes the trusted Android identity
 
 ## Routes
 
-Windows Wi-Fi connects to the `address:38471` shown by Android. TCP uses a four-byte big-endian length followed by one bounded secure packet. Android also advertises `_phonecomp._tcp` for future automatic browsing.
+Windows Wi-Fi can discover Android's `_phonecomp._tcp.local` mDNS advertisement or connect to the displayed `address:38471` manually. TCP uses a four-byte big-endian length followed by one bounded secure packet. Discovered names and addresses remain untrusted until the secure identity handshake succeeds.
 
 For BLE, Windows is the central/GATT client and Android is the peripheral/GATT server. Windows filters advertisements by the agreed service UUID, subscribes to the TX notification characteristic, and writes with response to RX. A one-byte sequence/first/last header fragments the same secure packets used by TCP. Both reassemblers enforce ordering, time, queue, and size bounds.
 
-Windows starts a remembered-device reconnect loop at startup and after disconnect: it tries the saved Wi-Fi endpoint for up to eight seconds, then BLE for up to fifteen seconds, with pauses of 2, 5, 10, 20 and then 30 seconds between rounds. Rounds continue while disconnected. The underlying manual BLE scan has a twenty-second bound; first pairing has a two-minute overall deadline. The pairing window offers both routes explicitly. Android starts both listeners automatically for a trusted laptop and when the user taps **Start pairing** for a new laptop. New trust approval is limited to two minutes, but listener/advertising expiry shutdown is not scheduled.
+Windows starts a remembered-device reconnect loop at startup and after disconnect: it tries the saved Wi-Fi endpoint, bounded mDNS-discovered endpoints, then BLE, with capped pauses between rounds. A discovered endpoint replaces the saved endpoint only after authentication as the remembered phone. First pairing has a two-minute overall deadline and offers automatic LAN, manual LAN and BLE. Android starts both listeners automatically for a trusted laptop and when the user taps **Start pairing** for a new laptop; unpaired listeners and approval expire after two minutes.
 
 Android may hold authenticated BLE and Wi-Fi sessions simultaneously but routes application messages through one active session, preferring Wi-Fi. If Wi-Fi closes, it sends the latest snapshot over authenticated BLE. Windows owns one route at a time and clears displayed phone state immediately when that route disconnects.
 

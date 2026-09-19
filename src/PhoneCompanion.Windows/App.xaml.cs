@@ -108,7 +108,16 @@ public partial class App : Application
             if (trusted is null) return;
             if (trusted.WifiEndpoint is { } endpoint && await TryTrustedRouteAsync(
                 PhoneCompanion.Core.Models.TransportKind.Wifi, value => ConnectionFactories.OpenWifiAsync(endpoint, value),
-                trusted, ConnectionPolicy.WifiConnectTimeout, token)) return;
+                trusted, ConnectionPolicy.WifiConnectTimeout, token, endpoint)) return;
+            var discovered = await MdnsPhoneDiscovery.FindAsync(token);
+            foreach (var phone in discovered.Take(3))
+            {
+                if (string.Equals(phone.Endpoint, trusted.WifiEndpoint, StringComparison.OrdinalIgnoreCase)) continue;
+                var candidate = phone.Endpoint;
+                if (await TryTrustedRouteAsync(PhoneCompanion.Core.Models.TransportKind.Wifi,
+                    value => ConnectionFactories.OpenWifiAsync(candidate, value), trusted,
+                    ConnectionPolicy.WifiConnectTimeout, token, candidate)) return;
+            }
             if (await TryTrustedRouteAsync(PhoneCompanion.Core.Models.TransportKind.Ble,
                 value => ConnectionFactories.OpenBleAsync(null, value), trusted, ConnectionPolicy.BleConnectTimeout, token)) return;
             await _reconnectWake.WaitAsync(ConnectionPolicy.ReconnectDelay(attempt++), token);
@@ -116,7 +125,7 @@ public partial class App : Application
     }
     private async Task<bool> TryTrustedRouteAsync(PhoneCompanion.Core.Models.TransportKind kind,
         Func<CancellationToken, Task<IFrameConnection>> open, TrustedDevice trusted, TimeSpan timeoutValue,
-        CancellationToken lifetime)
+        CancellationToken lifetime, string? learnedEndpoint = null)
     {
         if (_manager is null) return false;
         try
@@ -125,7 +134,13 @@ public partial class App : Application
                 (_, _) => Task.FromResult(false));
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime);
             timeout.CancelAfter(timeoutValue);
-            return await _manager.SetTransportAsync(transport, timeout.Token);
+            var connected = await _manager.SetTransportAsync(transport, timeout.Token);
+            if (connected && learnedEndpoint is not null &&
+                !string.Equals(learnedEndpoint, trusted.WifiEndpoint, StringComparison.OrdinalIgnoreCase))
+            {
+                try { _connectionStore.Save(trusted with { WifiEndpoint = learnedEndpoint }); } catch { }
+            }
+            return connected;
         }
         catch (OperationCanceledException) when (!lifetime.IsCancellationRequested) { return false; }
         catch { return false; }

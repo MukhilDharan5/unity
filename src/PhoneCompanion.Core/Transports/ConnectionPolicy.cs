@@ -10,6 +10,7 @@ public static class ConnectionPolicy
     public static TimeSpan WifiConnectTimeout { get; } = TimeSpan.FromSeconds(8);
     public static TimeSpan BleConnectTimeout { get; } = TimeSpan.FromSeconds(15);
     public static TimeSpan BleDiscoveryTimeout { get; } = TimeSpan.FromSeconds(20);
+    public static TimeSpan LanDiscoveryTimeout { get; } = TimeSpan.FromSeconds(5);
     public static TimeSpan CommandTimeout { get; } = TimeSpan.FromSeconds(5);
     public static TimeSpan PeerTimeout { get; } = TimeSpan.FromSeconds(35);
     public static TimeSpan HeartbeatInterval { get; } = TimeSpan.FromSeconds(10);

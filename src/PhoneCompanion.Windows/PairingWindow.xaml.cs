@@ -14,6 +14,7 @@ public partial class PairingWindow : Window
     private readonly PhoneStateManager _manager;
     private readonly IdentityAndTrustStore _store;
     private CancellationTokenSource? _attempt;
+    private CancellationTokenSource? _discovery;
     private TaskCompletionSource<bool>? _approval;
     public event Action? Connected;
     public PairingWindow(PhoneStateManager manager, IdentityAndTrustStore store)
@@ -22,7 +23,34 @@ public partial class PairingWindow : Window
         var trusted = store.Load();
         if (trusted?.WifiEndpoint is not null) Endpoint.Text = trusted.WifiEndpoint;
         ForgetButton.Visibility = trusted is null ? Visibility.Collapsed : Visibility.Visible;
-        Closed += (_, _) => { _approval?.TrySetResult(false); _attempt?.Cancel(); _attempt?.Dispose(); };
+        Closed += (_, _) => {
+            _approval?.TrySetResult(false); _attempt?.Cancel(); _attempt?.Dispose();
+            _discovery?.Cancel(); _discovery?.Dispose();
+        };
+    }
+    private async void OnDiscover(object sender, RoutedEventArgs e)
+    {
+        if (_attempt is not null || _discovery is not null) return;
+        _discovery = new CancellationTokenSource(ConnectionPolicy.PairingTimeout);
+        string? endpoint = null;
+        SetBusy(true); SetStatus("Looking for Unity Connect on your network…");
+        try
+        {
+            var phones = await MdnsPhoneDiscovery.FindAsync(_discovery.Token);
+            var phone = phones.Count > 0 ? phones[0] : null;
+            if (phone is null) SetStatus("No phone was found automatically. Enter the address shown on your phone or try Bluetooth.");
+            else
+            {
+                endpoint = phone.Endpoint; Endpoint.Text = endpoint;
+                SetStatus($"Found {phone.Name}. Opening a secure connection…");
+            }
+        }
+        catch (OperationCanceledException) { SetStatus("Network discovery canceled."); }
+        catch { SetStatus("Automatic discovery is unavailable. Enter the phone address or try Bluetooth."); }
+        finally { _discovery.Dispose(); _discovery = null; SetBusy(false); }
+        if (endpoint is { } discoveredEndpoint)
+            await ConnectAsync(TransportKind.Wifi,
+                token => ConnectionFactories.OpenWifiAsync(discoveredEndpoint, token), discoveredEndpoint);
     }
     private async void OnWifi(object sender, RoutedEventArgs e)
     {
@@ -70,7 +98,7 @@ public partial class PairingWindow : Window
     }
     private void SetBusy(bool value)
     {
-        WifiButton.IsEnabled = !value; BluetoothButton.IsEnabled = !value; Endpoint.IsEnabled = !value;
+        DiscoverButton.IsEnabled = !value; WifiButton.IsEnabled = !value; BluetoothButton.IsEnabled = !value; Endpoint.IsEnabled = !value;
         ForgetButton.IsEnabled = !value;
     }
     private void SetStatus(string value) { if (!Dispatcher.CheckAccess()) Dispatcher.BeginInvoke(() => Status.Text = value); else Status.Text = value; }

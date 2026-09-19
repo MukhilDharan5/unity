@@ -1,6 +1,6 @@
 # Phone Companion
 
-The [progress and resume log](PROGRESS.md) records the current MVP checkpoint: reconnect/lifecycle coordination, explicit Android access state, portable Android builds and typed connection policy are implemented. Work is proceeding implementation-first with minimal compile checks; broad validation is deferred. Next is automatic Windows LAN discovery using Android's existing authenticated service advertisement. The [Stage 0 audit](CURRENT_STATE.md) is the historical assessment. Security and Windows UI ADRs still await a user decision.
+The [progress and resume log](PROGRESS.md) records the current MVP checkpoint: automatic LAN discovery, reconnect/lifecycle coordination, explicit Android access state, portable Android builds and typed connection policy are implemented. Work is proceeding implementation-first with minimal compile checks; broad validation is deferred. The [Stage 0 audit](CURRENT_STATE.md) is the historical assessment. The secure-channel direction still needs a user decision before a compatibility-changing migration.
 
 A Windows desktop control app with a compact tray flyout and an Android companion. The two apps pair over BLE or Wi-Fi/LAN, verify a six-digit code, remember the approved device identity, and protect every application message with an authenticated encrypted session.
 
@@ -57,7 +57,7 @@ UI checks instantiate the actual XAML, view model and tray controller, exercise 
 | Clipboard | Opt-in new-text sync, 12 KiB limit, loop suppression, no stored history; Android sends only on a visible user action |
 | Message layer | JSON v1 behind `IPhoneMessageCodec`; authenticated encryption and replay rejection below it |
 | BLE connection | Windows central/client and Android peripheral/server with bounded fragmentation |
-| Wi-Fi connection | Windows TCP client and Android TCP server with a displayed manual endpoint and Android mDNS advertisement |
+| Wi-Fi connection | Windows discovers Android mDNS automatically, with manual endpoint fallback; TCP sessions still require secure identity verification |
 | Pairing and trust | Mutual P-256 identity proofs, transcript-bound six-digit code, confirmation on both devices, remembered identity |
 | Live incoming state | Android snapshots feed the Windows state manager; Windows commands return through the selected route |
 | Android app | Builds with permissions, pairing UI, state collection, media commands, DND rule, and clipboard transfer |

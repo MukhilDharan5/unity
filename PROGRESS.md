@@ -1,6 +1,6 @@
 # Project progress and resume log
 
-Last updated: 19 September 2026. **Stage 1D and the MVP-essential part of 1E are complete.** Reconnect, explicit Android access state, portable Android builds and typed timing policy are implemented. Detailed diagnostics and broad validation are deferred.
+Last updated: 19 September 2026. **Automatic authenticated LAN discovery is implemented for the MVP.** Reconnect, Android access state, portable builds and typed timing policy are also complete. Detailed diagnostics and broad validation are deferred.
 
 ## Current instructions
 
@@ -197,8 +197,12 @@ Android now reports nearby-device permission, Bluetooth enabled state, notificat
 
 Connection timeouts/backoff are centralized in typed policy objects on Android and Windows. `build_app.bat` now uses its own directory, respects existing `JAVA_HOME`/`ANDROID_HOME`, detects common local installs, accepts arbitrary Gradle arguments and contains no user/workspace-specific absolute path. Android Kotlin and Windows Release compile checks pass. Broad tests/lint/package validation and structured diagnostics are deferred under the MVP instruction.
 
+### 19 September 2026 — Automatic LAN discovery implemented
+
+Windows now sends a bounded local mDNS query for Android's existing `_phonecomp._tcp.local` advertisement, parses compressed PTR/SRV/A/AAAA responses, and offers **Find phone on this network** before manual address entry. Trusted reconnect tries the saved endpoint, newly discovered endpoints, then BLE; a changed endpoint is persisted only after the existing secure session authenticates the saved phone identity. Discovery remains a routing hint and does not change trust or wire bytes. Manual Wi-Fi and BLE remain available. Windows Release compilation passes with 0 warnings/errors; runtime network testing is deferred.
+
 ## Next concrete resume action
 
-Continue MVP functionality with automatic LAN discovery on Windows using Android's existing authenticated `_phonecomp._tcp` advertisement, while preserving manual endpoint entry and treating discovery only as a routing hint. Do not change trust or the secure wire. The secure-channel migration decision remains pending and does not block discovery.
+Next major coding choice: retain the current encrypted v1 channel for the MVP and move into remaining user-facing feature work, or pause feature work for a TLS/trust migration. The current implementation is isolated behind transport/session interfaces, but changing it affects pairing compatibility and requires an explicit decision.
 
 Do not repeat Stage 0 or migrate TLS/WinUI based only on the instruction to begin Stage 1. Preserve the Windows UI and Android root build/helper edits. The user authorized the repository snapshot and GitHub push recorded above.
