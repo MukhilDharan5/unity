@@ -1,6 +1,6 @@
 # Project progress and resume log
 
-Last updated: 17 September 2026. **Stage 1B-A1 — Android session publication/revocation is complete.** Stage 1A and 1B-W are complete; Stage 1 overall remains in progress. Next: 1B-A2 listener lifecycle, not started.
+Last updated: 19 September 2026. **Stage 1B-A1 — Android session publication/revocation is complete.** Stage 1A and 1B-W are complete; Stage 1 overall remains in progress. Next: 1B-A2 listener lifecycle, not started.
 
 ## Current instructions
 
@@ -8,7 +8,7 @@ Last updated: 17 September 2026. **Stage 1B-A1 — Android session publication/r
 - Work in small stages; report a completed checkpoint before moving to the next one.
 - Ask questions directly in this chat, not through separate question widgets.
 - Keep this log current so another session can resume without repeating the audit.
-- Preserve pre-existing uncommitted UI/build edits. No commits, resets or unrelated rewrites are authorized by this log.
+- Preserve the pre-existing UI/build edits. On 17 September 2026 the user authorized committing and pushing every current non-ignored project change to the configured GitHub repository. Resets and unrelated rewrites remain outside scope.
 
 ## Approved scope and pending decisions
 
@@ -149,8 +149,12 @@ Known limitations/debt: JVM tests exercise the actual Kotlin ownership helpers, 
 
 Recommended next checkpoint: 1B-A2 Android listener resource startup/shutdown. Decisions needed now: none. ADR-003 secure-channel direction and ADR-004 future Windows UI remain pending before dependent migrations. Do not claim all of 1B/Stage 1 complete.
 
+### 19 September 2026 — Repository snapshot prepared
+
+The user authorized committing and pushing all current non-ignored project changes. The snapshot covers the completed Stage 0, 1A, 1B-W and 1B-A1 implementation, tests, architecture and progress documentation, plus the preserved Windows dashboard and Android build/helper work. Generated build output, local toolchains, IDE state, local Android configuration and signing stores remain excluded by `.gitignore`. The configured target is `origin/main` at `https://github.com/MukhilDharan5/unity.git`. The validated results and remaining limitations above are the basis for this snapshot; no feature source changed after those checks.
+
 ## Next concrete resume action
 
 Begin **1B-A2 — Android listener startup/shutdown and stale provider callbacks**, after explaining the bounded scope in chat. Read `lan/LanServer.kt`, `ble/BleManager.kt`, and the service's endpoint/error/start/stop hooks. Address LAN resource initialization racing stop (socket/listener/client/NSD ownership), prevent old listener callbacks/port notices from overwriting a newer lifecycle, and ensure an old BLE pipe/callback cannot cancel a newer connection. Extract only small pure lifecycle seams where tests need controlled startup/stop interleavings; test production paths with fake resources. Preserve bind port 38471, NSD/service UUIDs, low-power BLE settings, foreground policy, permissions, user pairing window, trust and wire format. Keep physical integration requirements explicit. Ask directly in chat if a material policy/security/compatibility change is necessary. Do not repeat the completed session-owner/Windows audit work.
 
-Do not repeat Stage 0 or migrate TLS/WinUI based only on the instruction to begin Stage 1. Preserve the pre-existing Windows UI and Android root build/helper edits. No commit was created.
+Do not repeat Stage 0 or migrate TLS/WinUI based only on the instruction to begin Stage 1. Preserve the Windows UI and Android root build/helper edits. The user authorized the repository snapshot and GitHub push recorded above.
