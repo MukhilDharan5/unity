@@ -195,6 +195,26 @@
                             Tag="{Binding ClipboardEnabled}" Command="{Binding ToggleClipboard}"
                             ToolTip="{Binding ClipboardAction}" AutomationProperties.Name="{Binding ClipboardAction}" />
                 </Grid>
+                <StackPanel Visibility="{Binding HasPhoneBrightness, Converter={StaticResource BooleanToVisibility}}">
+                    <Border Height="1" Background="{DynamicResource Border}" Margin="0,14,0,14" />
+                    <Grid Margin="1,0,1,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <TextBlock Text="&#xE706;" Style="{StaticResource Glyph}" FontSize="16" HorizontalAlignment="Left" />
+                        <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                            <TextBlock Text="Phone brightness" />
+                            <TextBlock Text="{Binding AmbientLightText}" Foreground="{DynamicResource SecondaryText}" FontSize="9" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding PhoneBrightnessText}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <Button Style="{StaticResource TogglePill}" Content="{Binding PhoneAdaptiveText}"
+                                    Command="{Binding TogglePhoneAdaptive}" IsEnabled="{Binding CanControlPhoneBrightness}"
+                                    AutomationProperties.Name="Toggle adaptive phone brightness" />
+                        </StackPanel>
+                    </Grid>
+                    <Slider Minimum="1" Maximum="100" TickFrequency="1" IsMoveToPointEnabled="True" Margin="28,9,1,0"
+                            Value="{Binding PhoneBrightnessLevel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            IsEnabled="{Binding CanControlPhoneBrightness}" AutomationProperties.Name="Phone brightness" />
+                </StackPanel>
                 <TextBlock Text="{Binding Footer}" TextWrapping="Wrap" TextAlignment="Center"
                            Foreground="{DynamicResource SecondaryText}" FontSize="10" Margin="0,24,0,0"
                            AutomationProperties.LiveSetting="Polite" />

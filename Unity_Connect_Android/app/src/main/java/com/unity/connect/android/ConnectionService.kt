@@ -23,6 +23,7 @@ import com.unity.connect.android.core.*
 import com.unity.connect.android.dnd.CompanionDndController
 import com.unity.connect.android.lan.LanServer
 import com.unity.connect.android.state.StateCollector
+import com.unity.connect.android.state.BrightnessController
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.*
@@ -36,7 +37,8 @@ data class AccessState(
     val notifications: Boolean = false,
     val phoneState: Boolean = false,
     val mediaSessions: Boolean = false,
-    val dndPolicy: Boolean = false
+    val dndPolicy: Boolean = false,
+    val brightnessControl: Boolean = false
 )
 data class UiState(
     val isPaired: Boolean = false,
@@ -79,6 +81,7 @@ class ConnectionService : Service() {
     private lateinit var dnd: CompanionDndController
     private lateinit var clipboard: ClipboardBridge
     private lateinit var collector: StateCollector
+    private lateinit var brightness: BrightnessController
     private val prefs by lazy { getSharedPreferences("secure_peers_v1", MODE_PRIVATE) }
     private val identity by lazy { IdentityStore.load() }
     private val owner = PhoneSessionOwner(scope) { scope.launch { onSessionsChanged() } }
@@ -127,8 +130,9 @@ class ConnectionService : Service() {
         super.onCreate()
         instance = this
         dnd = CompanionDndController(this)
+        brightness = BrightnessController(this)
         clipboard = ClipboardBridge(this)
-        collector = StateCollector(this, dnd)
+        collector = StateCollector(this, dnd, brightness)
         collection = PhoneStateCollection(scope, owner, collector.phoneState)
         state.value = UiState(isPaired = prefs.contains("identity"), pairedPcName = prefs.getString("name", null),
             clipboardSyncEnabled = clipboard.enabled, access = readAccessState())
@@ -292,7 +296,8 @@ class ConnectionService : Service() {
                 granted(Manifest.permission.POST_NOTIFICATIONS),
             phoneState = granted(Manifest.permission.READ_PHONE_STATE),
             mediaSessions = NotificationManagerCompat.getEnabledListenerPackages(this).contains(packageName),
-            dndPolicy = getSystemService(NotificationManager::class.java).isNotificationPolicyAccessGranted
+            dndPolicy = getSystemService(NotificationManager::class.java).isNotificationPolicyAccessGranted,
+            brightnessControl = android.provider.Settings.System.canWrite(this)
         )
     }
     @SuppressLint("ApplySharedPref") // Trust must reach disk before the UI exposes the paired session.
@@ -394,6 +399,9 @@ class ConnectionService : Service() {
         when (val message = MessageCodec.decodeIncoming(payload)) {
             is IncomingMessage.MediaCommand -> collector.dispatchMediaCommand(message.command)
             is IncomingMessage.PcMediaUpdate -> state.update { it.copy(pcMedia = message.state) }
+            is IncomingMessage.BrightnessCommand -> if (!brightness.apply(message.level, message.adaptive)) state.update {
+                it.copy(featureNotice = "Allow phone brightness control in Android settings first.")
+            }
             is IncomingMessage.DndRuleCommand -> dnd.setCompanionRuleActive(message.active)
             is IncomingMessage.ClipboardUpdate -> if (clipboard.enabled) clipboard.applyIncoming(message.content)
             null -> Unit

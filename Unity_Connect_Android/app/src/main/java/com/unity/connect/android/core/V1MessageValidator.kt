@@ -27,6 +27,7 @@ internal object V1MessageValidator {
             "media_command" -> require(text(root, "command", 32, true) in MEDIA_COMMANDS)
             "pc_media" -> nullable(required(root, "state"), ::media)
             "pc_media_command" -> require(text(root, "command", 32, true) in MEDIA_COMMANDS)
+            "brightness_command" -> brightnessCommand(root)
             "dnd_rule_command" -> boolean(root, "active")
             "clipboard" -> clipboard(root)
             else -> throw IllegalArgumentException("Unknown application message")
@@ -38,7 +39,8 @@ internal object V1MessageValidator {
         media = nullable(required(root, "media"), ::media),
         cellular = nullable(required(root, "cellular")) { cellular(objectValue(it)) },
         dnd = nullable(required(root, "dnd")) { dnd(objectValue(it)) },
-        sound = nullable(required(root, "sound"), ::sound)
+        sound = nullable(required(root, "sound"), ::sound),
+        brightness = root["brightness"]?.let { nullable(it, ::brightness) }
     )
 
     fun clipboard(root: JsonObject): ClipboardContent {
@@ -56,6 +58,7 @@ internal object V1MessageValidator {
     fun incoming(root: JsonObject): IncomingMessage? = when (text(root, "type", 32, true)) {
         "media_command" -> IncomingMessage.MediaCommand(text(root, "command", 32, true)!!)
         "pc_media" -> IncomingMessage.PcMediaUpdate(nullable(required(root, "state"), ::media))
+        "brightness_command" -> brightnessCommand(root)
         "dnd_rule_command" -> IncomingMessage.DndRuleCommand(boolean(root, "active"))
         "clipboard" -> IncomingMessage.ClipboardUpdate(clipboard(root))
         else -> null // Valid phone-state messages are not commands for Android.
@@ -96,6 +99,29 @@ internal object V1MessageValidator {
         return DndState(enabled, active, controllable)
     }
 
+    private fun brightness(value: JsonElement): BrightnessState {
+        val root = objectValue(value)
+        val level = integer(root, "level")
+        val lux = nullableNumber(root, "ambientLux")
+        val status = text(root, "ambientStatus", 16, true)!!
+        require(level in 0..100 && (lux == null || lux.isFinite() && lux in 0.0..200000.0)) {
+            "Invalid brightness state"
+        }
+        require(status in AMBIENT_STATES && ((status == "valid") == (lux != null))) {
+            "Invalid ambient state"
+        }
+        return BrightnessState(level, boolean(root, "adaptive"), boolean(root, "canControl"), lux, status)
+    }
+
+    private fun brightnessCommand(root: JsonObject): IncomingMessage.BrightnessCommand {
+        val level = nullableInteger(root, "level")
+        val adaptive = nullableBoolean(root, "adaptive")
+        require((level == null || level in 1..100) && (level != null || adaptive != null)) {
+            "Invalid brightness command"
+        }
+        return IncomingMessage.BrightnessCommand(level, adaptive)
+    }
+
     private fun sound(value: JsonElement): String = stringValue(value).also {
         require(it in SOUND_MODES) { "Invalid sound mode" }
     }
@@ -126,6 +152,15 @@ internal object V1MessageValidator {
 
     private fun nullableBoolean(root: JsonObject, name: String): Boolean? =
         if (root[name] == null || root[name] == JsonNull) null else boolean(root, name)
+
+    private fun nullableInteger(root: JsonObject, name: String): Int? =
+        if (root[name] == null || root[name] == JsonNull) null else integer(root, name)
+
+    private fun nullableNumber(root: JsonObject, name: String): Double? {
+        val primitive = root[name] as? JsonPrimitive ?: return null
+        require(!primitive.isString) { "Expected number" }
+        return primitive.doubleOrNull ?: throw IllegalArgumentException("Expected number")
+    }
 
     private fun text(root: JsonObject, name: String, max: Int, required: Boolean = false): String? {
         val value = root[name]
@@ -178,4 +213,5 @@ internal object V1MessageValidator {
     private val NETWORKS = setOf("unknown", "cellular", "2g", "3g", "4g", "5g")
     private val SIGNALS = setOf("unknown", "none", "poor", "fair", "good", "excellent")
     private val SOUND_MODES = setOf("normal", "vibrate", "silent")
+    private val AMBIENT_STATES = setOf("valid", "covered", "unavailable")
 }

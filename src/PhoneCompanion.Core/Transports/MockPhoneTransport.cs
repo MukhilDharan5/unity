@@ -25,7 +25,7 @@ public sealed class MockPhoneTransport(IPhoneMessageCodec codec) : IPhoneTranspo
         State = ConnectionState.Connected;
         ConnectionChanged?.Invoke(State);
         Emit(new StateSnapshot(new(68, false), CurrentMedia(), new(false, CellularNetwork.FiveG, SignalStrength.Good, true),
-            new(false), SoundMode.Vibrate));
+            new(false), SoundMode.Vibrate, new(62, true, false, 184, AmbientLightStatus.Valid)));
         return Task.CompletedTask;
     }
     public async Task SendAsync(ReadOnlyMemory<byte> frame, CancellationToken cancellationToken = default)

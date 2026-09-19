@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.net.Uri
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -272,6 +273,7 @@ private fun AccessContent(access: AccessState, requestRuntime: () -> Unit, conte
             AccessRow("Phone status", access.phoneState, "Optional")
             AccessRow("Media sessions", access.mediaSessions, "Optional")
             AccessRow("Do Not Disturb", access.dndPolicy, "Optional")
+            AccessRow("Phone brightness control", access.brightnessControl, "Optional")
             if (!access.nearbyDevices || !access.notifications || !access.phoneState) {
                 Button(onClick = requestRuntime) { Text("Review device permissions") }
             }
@@ -284,6 +286,14 @@ private fun AccessContent(access: AccessState, requestRuntime: () -> Unit, conte
                 Button(onClick = {
                     context.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
                 }) { Text("Allow DND access") }
+            }
+            if (!access.brightnessControl) {
+                Button(onClick = {
+                    context.startActivity(Intent(
+                        Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                        Uri.parse("package:${context.packageName}")
+                    ))
+                }) { Text("Allow brightness control") }
             }
         }
     }

@@ -20,6 +20,8 @@ The desktop has a native title bar with DWM dark caption/rounded-corner requests
 
 `WindowsMediaController` observes the current Global System Media Transport Controls session, normalizes bounded source/title/artist text and publishes playback/capability changes to the authenticated phone. Android commands are checked against the current Windows session's play/pause, next and previous capabilities before calling the matching platform action. Session/app behavior still needs runtime validation.
 
+The shared view model exposes phone brightness, adaptive state and ambient validity. The flyout and full app provide a debounced 1–100 slider plus an adaptive toggle only when Android reports control access. Slider movement preserves the phone's current adaptive setting; the toggle changes the mode separately. Covered or unavailable light is shown as a status and is not converted into a laptop brightness value in this stage.
+
 ## UI review performed
 
 The existing smoke runner instantiates actual XAML/view model/tray, checks shared state, samples, media command gating/visibility, DND separation, clipboard defaults/echo suppression, desktop navigation, small-window scrolling and close/reopen behavior. It renders 20 states, including light/dark flyouts, desktop, pairing, disconnection, long metadata and 150% rasters. Representative light flyout and dark desktop images were inspected during the audit.

@@ -5,6 +5,7 @@ public enum TransportKind { Mock, Ble, Wifi }
 public enum SoundMode { Normal, Vibrate, Silent }
 public enum SignalStrength { Unknown, None, Poor, Fair, Good, Excellent }
 public enum CellularNetwork { Unknown, Cellular, TwoG, ThreeG, FourG, FiveG }
+public enum AmbientLightStatus { Valid, Covered, Unavailable }
 
 public sealed record BatteryState(int Level, bool Charging);
 // Enabled is the phone's effective DND state. CompanionRuleActive only represents
@@ -23,6 +24,12 @@ public sealed record CellularState(
 public sealed record MediaCapabilities(bool PlayPause, bool NextTrack, bool PreviousTrack);
 public sealed record MediaState(
     string? Source, string? Title, string? Artist, bool IsPlaying, MediaCapabilities Capabilities);
+public sealed record PhoneBrightnessState(
+    int Level,
+    bool Adaptive,
+    bool CanControl,
+    double? AmbientLux,
+    AmbientLightStatus AmbientStatus);
 public sealed record ClipboardContent(Guid UpdateId, string Text);
 
 // Null means the phone has not supplied this state. Never infer an Off/Normal/0% value.
@@ -33,7 +40,8 @@ public sealed record PhoneState(
     MediaState? Media = null,
     CellularState? Cellular = null,
     DndState? Dnd = null,
-    SoundMode? Sound = null)
+    SoundMode? Sound = null,
+    PhoneBrightnessState? Brightness = null)
 {
     public static PhoneState Empty { get; } = new(ConnectionState.Disconnected);
     public bool IsDemo => Transport == TransportKind.Mock;

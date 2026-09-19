@@ -102,7 +102,7 @@ public sealed class PhoneStateManager(IPhoneMessageCodec codec) : IAsyncDisposab
                 DndUpdate m => _current with { Dnd = m.State },
                 SoundModeUpdate m => _current with { Sound = m.State },
                 StateSnapshot m => _current with { Battery = m.Battery, Media = m.Media,
-                    Cellular = m.Cellular, Dnd = m.Dnd, Sound = m.Sound },
+                    Cellular = m.Cellular, Dnd = m.Dnd, Sound = m.Sound, Brightness = m.Brightness },
                 _ => _current // Incoming commands never mutate state or execute Windows actions.
             };
             if (next == _current) return;
@@ -185,6 +185,27 @@ public sealed class PhoneStateManager(IPhoneMessageCodec codec) : IAsyncDisposab
             }
             if (transport is null) return CommandResult.Unavailable;
             return await SendMessageAsync(transport, new PcMediaUpdate(state), cancellationToken).ConfigureAwait(false);
+        }
+        finally { _operations.Release(); }
+    }
+    public async Task<CommandResult> SetPhoneBrightnessAsync(int? level, bool? adaptive,
+        CancellationToken cancellationToken = default)
+    {
+        if (level is not null && level is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(level));
+        if (level is null && adaptive is null) throw new ArgumentException("A brightness value or adaptive state is required.");
+        if (!await _operations.WaitAsync(0, cancellationToken).ConfigureAwait(false)) return CommandResult.Unavailable;
+        try
+        {
+            IPhoneTransport? transport;
+            lock (_sync)
+            {
+                if (_disposed || _current.Connection != ConnectionState.Connected || _current.Transport == TransportKind.Mock ||
+                    _current.Brightness?.CanControl != true) return CommandResult.Unavailable;
+                transport = _transport;
+            }
+            if (transport is null) return CommandResult.Unavailable;
+            return await SendMessageAsync(transport, new PhoneBrightnessCommandMessage(level, adaptive), cancellationToken)
+                .ConfigureAwait(false);
         }
         finally { _operations.Release(); }
     }

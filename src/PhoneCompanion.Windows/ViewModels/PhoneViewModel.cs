@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -20,6 +21,8 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     private bool _busy;
     private bool _disposed;
     private string? _commandNotice;
+    private int? _pendingPhoneBrightness;
+    private CancellationTokenSource? _brightnessDebounce;
     public PhoneViewModel(PhoneStateManager manager, Dispatcher dispatcher, ClipboardSyncCoordinator? clipboard = null,
         Func<string?>? openPhone = null)
     {
@@ -30,6 +33,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         ToggleDndRule = new AsyncCommand(ToggleDndRuleAsync, () => !_busy && CanControlDndRule);
         ToggleClipboard = new AsyncCommand(ToggleClipboardAsync, () => !_busy && _clipboard is not null);
         OpenPhone = new AsyncCommand(OpenPhoneAsync, () => !_busy && _openPhone is not null);
+        TogglePhoneAdaptive = new AsyncCommand(TogglePhoneAdaptiveAsync, () => !_busy && CanControlPhoneBrightness);
         manager.StateChanged += OnStateChanged;
         if (_clipboard is not null)
         {
@@ -44,6 +48,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     public AsyncCommand ToggleDndRule { get; }
     public AsyncCommand ToggleClipboard { get; }
     public AsyncCommand OpenPhone { get; }
+    public AsyncCommand TogglePhoneAdaptive { get; }
     public bool IsConnected => _state.Connection == ConnectionState.Connected;
     public bool IsDemo => _state.IsDemo;
     public bool HasMedia => _state.Media?.IsPlaying == true;
@@ -67,6 +72,35 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     public string BatteryLevelText => _state.Battery is { } b ? $"{b.Level}%" : "—";
     public int BatteryLevel => _state.Battery?.Level ?? 0;
     public bool HasBattery => _state.Battery is not null;
+    public bool HasPhoneBrightness => _state.Brightness is not null;
+    public bool CanControlPhoneBrightness => IsConnected && !IsDemo && _state.Brightness?.CanControl == true;
+    public double PhoneBrightnessLevel
+    {
+        get => _pendingPhoneBrightness ?? _state.Brightness?.Level ?? 0;
+        set
+        {
+            var level = Math.Clamp((int)Math.Round(value), 1, 100);
+            if (!CanControlPhoneBrightness || _pendingPhoneBrightness == level ||
+                (_pendingPhoneBrightness is null && _state.Brightness?.Level == level)) return;
+            _pendingPhoneBrightness = level;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PhoneBrightnessLevel)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PhoneBrightnessText)));
+            _brightnessDebounce?.Cancel(); _brightnessDebounce?.Dispose();
+            _brightnessDebounce = new CancellationTokenSource();
+            _ = SendPhoneBrightnessAfterDelayAsync(level, _brightnessDebounce.Token);
+        }
+    }
+    public string PhoneBrightnessText => $"{(int)Math.Round(PhoneBrightnessLevel)}%";
+    public bool IsPhoneAdaptive => _state.Brightness?.Adaptive == true;
+    public string PhoneAdaptiveText => IsPhoneAdaptive ? "Auto" : "Manual";
+    public string PhoneBrightnessAccessText => CanControlPhoneBrightness ? "Control available" : "Allow control in the Android app";
+    public string AmbientLightText => _state.Brightness switch
+    {
+        { AmbientStatus: AmbientLightStatus.Valid, AmbientLux: double lux } => $"Ambient light · {lux:0.#} lux",
+        { AmbientStatus: AmbientLightStatus.Covered } => "Ambient light · Phone covered",
+        { AmbientStatus: AmbientLightStatus.Unavailable } => "Ambient light sensor unavailable",
+        _ => "Ambient light unavailable"
+    };
     public string ConnectionSummary => IsDemo ? "Sample data preview" : _state.Connection switch
     {
         ConnectionState.Connected => "Your phone is available",
@@ -148,7 +182,9 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         _dispatcher.BeginInvoke(() =>
         {
             if (_disposed) return;
-            _state = state; _commandNotice = null; Refresh();
+            _state = state; _commandNotice = null;
+            if (_pendingPhoneBrightness == state.Brightness?.Level) _pendingPhoneBrightness = null;
+            Refresh();
         });
     }
     private async Task SendAsync(MediaCommand command)
@@ -188,6 +224,34 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         Refresh();
         return Task.CompletedTask;
     }
+    private async Task SendPhoneBrightnessAfterDelayAsync(int level, CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(200, token);
+            var result = await _manager.SetPhoneBrightnessAsync(level, null, token);
+            if (result != CommandResult.Sent)
+            {
+                _pendingPhoneBrightness = null;
+                _commandNotice = result == CommandResult.Failed
+                    ? "Phone brightness could not be changed."
+                    : "Allow brightness control in the Android app first.";
+            }
+            if (!_disposed && !_dispatcher.HasShutdownStarted) await _dispatcher.InvokeAsync(Refresh);
+        }
+        catch (OperationCanceledException) { }
+    }
+    private async Task TogglePhoneAdaptiveAsync()
+    {
+        _busy = true; _commandNotice = null; Refresh();
+        try
+        {
+            var result = await _manager.SetPhoneBrightnessAsync(null, !IsPhoneAdaptive);
+            if (result == CommandResult.Failed) _commandNotice = "Adaptive brightness could not be changed.";
+            else if (result == CommandResult.Unavailable) _commandNotice = "Allow brightness control in the Android app first.";
+        }
+        finally { _busy = false; Refresh(); }
+    }
     private void OnClipboardChanged()
     {
         if (_disposed || _dispatcher.HasShutdownStarted) return;
@@ -201,11 +265,13 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     private void Refresh()
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
-        Previous.Refresh(); PlayPause.Refresh(); Next.Refresh(); ToggleDndRule.Refresh(); ToggleClipboard.Refresh(); OpenPhone.Refresh();
+        Previous.Refresh(); PlayPause.Refresh(); Next.Refresh(); ToggleDndRule.Refresh(); ToggleClipboard.Refresh();
+        OpenPhone.Refresh(); TogglePhoneAdaptive.Refresh();
     }
     public void Dispose()
     {
         _disposed = true;
+        _brightnessDebounce?.Cancel(); _brightnessDebounce?.Dispose(); _brightnessDebounce = null;
         _manager.StateChanged -= OnStateChanged;
         if (_clipboard is not null)
         {

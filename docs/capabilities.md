@@ -15,7 +15,7 @@ Status: observed implementation, 17 September 2026. “Implemented” means code
 | Clipboard | Both directions, text only | Independent opt-in and connected real route | No negotiated remote enablement/support or route suitability; Android send is manual |
 | Screen/control | Optional scrcpy launcher on Windows | Local executable and Android debugging authorization | No bundled executable or automated wireless-debugging setup |
 | OEM laptop profile | Absent | None | Requires provider discovery and hardware research |
-| Brightness/ambient/pocket | Absent | None | Requires permission/sensor models and device validation |
+| Brightness/ambient/pocket | Android -> Windows state; Windows -> Android control | Special Android settings access for control; light/proximity sensor availability | Device filtering, pocket classification and OEM brightness behavior need validation |
 | Headphone handoff/hotspot/audio | Absent | None | Public/OEM/optional privileged feasibility unresolved |
 | PC activity/lock/unlock | Absent | None | Privacy policy; lock safeguards; separate unlock security project |
 

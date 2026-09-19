@@ -30,6 +30,7 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
                 root["cellular"] = m.Cellular is null ? null : Cellular(m.Cellular);
                 root["dnd"] = m.Dnd is null ? null : Dnd(m.Dnd);
                 root["sound"] = m.Sound is null ? null : JsonValue.Create(Sound(m.Sound.Value));
+                root["brightness"] = m.Brightness is null ? null : Brightness(m.Brightness);
                 break;
             case MediaCommandMessage m:
                 root["type"] = "media_command";
@@ -46,6 +47,11 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
             case PcMediaCommandMessage m:
                 root["type"] = "pc_media_command";
                 root["command"] = MediaCommandText(m.Command);
+                break;
+            case PhoneBrightnessCommandMessage m:
+                root["type"] = "brightness_command";
+                root["level"] = m.Level is int level ? JsonValue.Create(level) : null;
+                root["adaptive"] = m.Adaptive is bool adaptive ? JsonValue.Create(adaptive) : null;
                 break;
             case DndRuleCommandMessage m:
                 root["type"] = "dnd_rule_command";
@@ -90,6 +96,7 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
                 }),
                 "pc_media" => new PcMediaUpdate(ReadNullable(r.GetProperty("state"), ReadMedia)),
                 "pc_media_command" => new PcMediaCommandMessage(ReadMediaCommand(r)),
+                "brightness_command" => ReadBrightnessCommand(r),
                 "dnd_rule_command" => new DndRuleCommandMessage(Bool(r, "active")),
                 "clipboard" => new ClipboardUpdate(ReadClipboard(r)),
                 _ => null
@@ -117,6 +124,11 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
             foreach (var child in element.EnumerateArray()) ValidateObject(child);
     }
     private static int Int(JsonElement r, string name) => r.GetProperty(name).GetInt32();
+    private static int? NullableInt(JsonElement r, string name)
+    {
+        if (!r.TryGetProperty(name, out var value) || value.ValueKind == JsonValueKind.Null) return null;
+        return value.GetInt32();
+    }
     private static bool Bool(JsonElement r, string name) => r.GetProperty(name).GetBoolean();
     private static bool? NullableBool(JsonElement r, string name)
     {
@@ -177,6 +189,30 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
         if (canControl && companionRuleActive is null) throw new FormatException();
         return new(Bool(r, "enabled"), companionRuleActive, canControl);
     }
+    private static PhoneBrightnessState ReadBrightness(JsonElement r)
+    {
+        var level = Int(r, "level");
+        if (level is < 0 or > 100) throw new FormatException();
+        var ambient = r.TryGetProperty("ambientLux", out var lux) && lux.ValueKind != JsonValueKind.Null
+            ? lux.GetDouble() : (double?)null;
+        if (ambient is < 0 or > 200000 || (ambient is double value && !double.IsFinite(value))) throw new FormatException();
+        var status = Text(r, "ambientStatus", 16, true) switch
+        {
+            "valid" => AmbientLightStatus.Valid,
+            "covered" => AmbientLightStatus.Covered,
+            "unavailable" => AmbientLightStatus.Unavailable,
+            _ => throw new FormatException()
+        };
+        if ((status == AmbientLightStatus.Valid) != ambient.HasValue) throw new FormatException();
+        return new(level, Bool(r, "adaptive"), Bool(r, "canControl"), ambient, status);
+    }
+    private static PhoneBrightnessCommandMessage ReadBrightnessCommand(JsonElement r)
+    {
+        var level = NullableInt(r, "level");
+        var adaptive = NullableBool(r, "adaptive");
+        if (level is not null && level is < 1 or > 100 || level is null && adaptive is null) throw new FormatException();
+        return new(level, adaptive);
+    }
     private static ClipboardContent ReadClipboard(JsonElement r)
     {
         var updateIdText = Text(r, "updateId", 36, required: true);
@@ -190,7 +226,9 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
         ReadNullable(r.GetProperty("battery"), ReadBattery), ReadNullable(r.GetProperty("media"), ReadMedia),
         ReadNullable(r.GetProperty("cellular"), ReadCellular),
         ReadNullable(r.GetProperty("dnd"), ReadDnd),
-        r.GetProperty("sound").ValueKind == JsonValueKind.Null ? null : ReadSound(r.GetProperty("sound")));
+        r.GetProperty("sound").ValueKind == JsonValueKind.Null ? null : ReadSound(r.GetProperty("sound")),
+        r.TryGetProperty("brightness", out var brightness) && brightness.ValueKind != JsonValueKind.Null
+            ? ReadBrightness(brightness) : null);
     private static JsonObject Battery(BatteryState s) => new() { ["level"] = s.Level, ["charging"] = s.Charging };
     private static JsonObject? Media(MediaState? s) => s is null ? null : new()
     {
@@ -212,6 +250,20 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
             CellularNetwork.TwoG => "2g", CellularNetwork.ThreeG => "3g", CellularNetwork.FourG => "4g",
             CellularNetwork.FiveG => "5g", _ => throw new ArgumentOutOfRangeException(nameof(s)) },
         ["signal"] = s.Signal.ToString().ToLowerInvariant()
+    };
+    private static JsonObject Brightness(PhoneBrightnessState s) => new()
+    {
+        ["level"] = s.Level,
+        ["adaptive"] = s.Adaptive,
+        ["canControl"] = s.CanControl,
+        ["ambientLux"] = s.AmbientLux is double lux ? JsonValue.Create(lux) : null,
+        ["ambientStatus"] = s.AmbientStatus switch
+        {
+            AmbientLightStatus.Valid => "valid",
+            AmbientLightStatus.Covered => "covered",
+            AmbientLightStatus.Unavailable => "unavailable",
+            _ => throw new ArgumentOutOfRangeException(nameof(s))
+        }
     };
     private static string Sound(SoundMode s) => s.ToString().ToLowerInvariant();
     private static MediaCommand ReadMediaCommand(JsonElement r) => Text(r, "command", 32, true) switch

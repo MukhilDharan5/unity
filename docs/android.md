@@ -22,6 +22,7 @@ Stage 1B-A2 adds a shared `ListenerLifecycle` fence beneath both providers. Each
 | Notifications | `POST_NOTIFICATIONS` on API 33+ | Included in runtime UI request; foreground notification is built by service |
 | Foreground service | General and `FOREGROUND_SERVICE_CONNECTED_DEVICE` | Service declares `connectedDevice`; manifest network permission satisfies one documented prerequisite |
 | Notification policy | `ACCESS_NOTIFICATION_POLICY` plus settings grant | Enables only the application's automatic DND rule |
+| Modify system settings | `WRITE_SETTINGS` plus explicit special-access screen | Optional authenticated phone brightness changes; state/sensors remain readable without it |
 | Notification listener | Exported listener service protected by system bind permission | Explicit settings shortcut for active media-session access; no unrelated notification content handling |
 
 No location, system-settings-write, screen-capture, accessibility, Shizuku or ADB permissions/integrations are added. Future target-SDK/minimum-version changes require a compatibility decision and device tests.
@@ -31,6 +32,8 @@ Android connected-device foreground services have specific manifest/runtime prer
 ## State/event collection
 
 `StateCollector` uses battery and ringer-mode broadcasts, default-network and telephony callbacks, active media-session and media-controller callbacks, plus the DND controller's state flow. `PhoneStateCollection` owns observer replacement and latest state. It cancels after the last route closes/Forget, waits for prior observer cleanup before replacement, and checks collection identity/session generation before emitting snapshots. Rapid restart retains the cleanup chain; an old finally block cannot clear new state. The service sends normalized-category full snapshots on changes, not a 500 ms polling loop.
+
+`BrightnessController` observes system brightness/mode settings and the light, proximity and screen-state signals. Light readings use exponential smoothing and publish only after an absolute or relative change threshold. A covered state combines proximity with very low light, or screen-off with near-zero light; covered/unavailable states never transmit a usable lux value. The first implementation intentionally avoids a complex motion/orientation classifier. Authenticated brightness commands require the user-granted special settings access and preserve adaptive mode unless the separate adaptive command changes it.
 
 When phone-state access is available, `TelephonyCallback` reports data-network generation, 5G display overrides and normalized signal-strength changes. Default-network callbacks independently report whether Wi-Fi or mobile data is active. Missing permission keeps radio details unknown while preserving available connection-route state. Multi-SIM behavior still follows Android's default `TelephonyManager` and needs physical-device validation.
 

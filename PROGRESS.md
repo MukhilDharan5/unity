@@ -211,8 +211,14 @@ The user explicitly approved both the Windows-to-Android media direction and scr
 
 Windows now exposes **Open phone** in the full app, flyout and tray. The launcher detects `scrcpy.exe` beside the app, in packaged tool folders, through `UNITY_CONNECT_SCRCPY`, common install locations or `PATH`; it starts scrcpy without a visible console. scrcpy is not downloaded or bundled, the local source checkout currently has no executable, Android debugging authorization remains external, and ADB is never used as the normal companion transport. No new Android permission, persistence format or dependency was added. Focused Windows Release compilation passed with 0 warnings/errors and Android Kotlin emitted the updated classes; broader tests/device debugging remain deferred.
 
+### 19 September 2026 — Phone brightness and sensors implemented
+
+The user explicitly approved the new brightness protocol state and Android special settings access. Android now observes current system brightness and adaptive mode, filters ambient-light readings, combines light/proximity/screen signals into a simple covered state, and reports truthful valid/covered/unavailable ambient status in the optional v1 `brightness` snapshot section. The Access card opens Android's **Modify system settings** screen. Authenticated `brightness_command` messages can change the 1–100 brightness level or adaptive mode only while `Settings.System.canWrite` is true.
+
+Windows now shows phone brightness, ambient lux/covered status and adaptive state in the full app and flyout. Its slider is debounced, preserves adaptive mode and is disabled until Android reports control access; the adaptive toggle is separate. Percentage conversion round-trips through Android's 0–255 setting scale. No laptop brightness automation was added. Windows Release compilation passed with 0 warnings/errors and Android Kotlin emitted the new controller/UI/protocol classes. Sensor behavior, settings access and OEM brightness response remain for device testing; broad tests are deferred.
+
 ## Next concrete resume action
 
-Continue the remaining MVP user-facing feature work on the current isolated v1 channel. Media direction and optional scrcpy launch are now approved and implemented. Ask directly before any new Android permission, additional wire field, persistence format, hotspot/headphone control, brightness/sensor access or audio transport.
+Continue the remaining MVP user-facing feature work on the current isolated v1 channel. Media direction, optional scrcpy launch and phone brightness/sensors are approved and implemented. Ask directly before laptop adaptive-brightness automation, any new Android permission, additional wire field, persistence format, hotspot/headphone control or audio transport.
 
 Do not repeat Stage 0 or migrate TLS/WinUI without a new explicit decision. Preserve the Windows UI and Android root build/helper edits. The user authorized the repository snapshot and GitHub push recorded above.

@@ -37,7 +37,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 
 class StateCollector(
     private val context: Context,
-    dndController: CompanionDndController
+    dndController: CompanionDndController,
+    brightnessController: BrightnessController
 ) {
     private var currentController: MediaController? = null
 
@@ -49,6 +50,8 @@ class StateCollector(
         soundFlow()
     ) { battery, cellular, media, dnd, sound ->
         PhoneSnapshot(battery, media, cellular, dnd, sound)
+    }.combine(brightnessController.state) { snapshot, brightness ->
+        snapshot.copy(brightness = brightness)
     }
 
     fun dispatchMediaCommand(command: String): Boolean {

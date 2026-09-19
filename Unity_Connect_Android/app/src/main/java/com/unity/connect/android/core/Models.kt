@@ -27,6 +27,15 @@ data class MediaState(
 )
 
 @Serializable
+data class BrightnessState(
+    val level: Int,
+    val adaptive: Boolean,
+    val canControl: Boolean,
+    val ambientLux: Double?,
+    val ambientStatus: String
+)
+
+@Serializable
 data class CellularState(
     val isUsingCellularData: Boolean,
     val network: String,
@@ -53,6 +62,7 @@ data class PhoneSnapshot(
     val cellular: CellularState?,
     val dnd: DndState?,
     val sound: String?,
+    val brightness: BrightnessState? = null,
     val version: Int = 1,
     val type: String = "snapshot"
 )
@@ -115,6 +125,7 @@ data class CommandAck(val version: Int, val type: String, val command_id: String
 sealed interface IncomingMessage {
     data class MediaCommand(val command: String) : IncomingMessage
     data class PcMediaUpdate(val state: MediaState?) : IncomingMessage
+    data class BrightnessCommand(val level: Int?, val adaptive: Boolean?) : IncomingMessage
     data class DndRuleCommand(val active: Boolean) : IncomingMessage
     data class ClipboardUpdate(val content: ClipboardContent) : IncomingMessage
 }

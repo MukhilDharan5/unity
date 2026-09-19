@@ -79,6 +79,14 @@ A full snapshot replaces all five state sections atomically. **All five keys are
 }
 ```
 
+New peers may add an optional `brightness` section to the snapshot. Its absence remains valid for older v1 peers:
+
+```json
+"brightness":{"level":62,"adaptive":true,"canControl":true,"ambientLux":184.2,"ambientStatus":"valid"}
+```
+
+`level` is 0–100. `ambientStatus` is `valid`, `covered`, or `unavailable`; only `valid` carries an `ambientLux` number from 0 through 200,000. `canControl` reflects Android's current special settings access and is never inferred on Windows.
+
 For example, clearing battery availability in v1 requires a snapshot with `battery:null` and the current values (or `null`) for the other sections. There is no implicit expiry duration in v1. Each future transport's reviewed liveness mechanism must report disconnection; Windows then clears all values immediately.
 
 ## Windows → phone
@@ -108,6 +116,14 @@ Android controls the advertised Windows session with the matching direction-spec
 ```
 
 `command` is `play_pause`, `next_track`, or `previous_track`. Android drops unavailable or repeated in-flight commands. Windows executes the command only through the current Global System Media Transport Controls session and publishes the resulting state; writes are not application acknowledgments and are not retried across transports.
+
+Phone brightness changes use:
+
+```json
+{"version":1,"type":"brightness_command","level":62,"adaptive":null}
+```
+
+`level` is optional but, when present, is 1–100. `adaptive` is an optional Boolean. At least one must be non-null. Android applies the command only while `Settings.System.canWrite` is true. Slider commands preserve the current adaptive setting; the separate adaptive toggle sends only `adaptive`.
 
 Companion DND changes use a distinct command:
 

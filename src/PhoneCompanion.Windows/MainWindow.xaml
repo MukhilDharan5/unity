@@ -269,6 +269,27 @@
                                         </Border>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Phone brightness" Style="{StaticResource SectionHeading}" />
+                                        <Border Style="{StaticResource SettingRow}" Margin="0,0,0,28"
+                                                Visibility="{Binding HasPhoneBrightness, Converter={StaticResource VisibleIf}}">
+                                            <StackPanel>
+                                                <Grid Margin="0,0,0,12">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                    <StackPanel>
+                                                        <TextBlock Text="Display brightness" Style="{StaticResource SettingTitle}" />
+                                                        <TextBlock Text="{Binding AmbientLightText}" Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Text="{Binding PhoneBrightnessText}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="12,0" />
+                                                    <Button Grid.Column="2" Style="{StaticResource SyncSwitch}" Tag="{Binding IsPhoneAdaptive}"
+                                                            Command="{Binding TogglePhoneAdaptive}" IsEnabled="{Binding CanControlPhoneBrightness}"
+                                                            ToolTip="Toggle adaptive phone brightness" AutomationProperties.Name="Toggle adaptive phone brightness" />
+                                                </Grid>
+                                                <Slider Minimum="1" Maximum="100" TickFrequency="1" IsMoveToPointEnabled="True"
+                                                        Value="{Binding PhoneBrightnessLevel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                        IsEnabled="{Binding CanControlPhoneBrightness}" AutomationProperties.Name="Phone brightness" />
+                                                <TextBlock Text="{Binding PhoneBrightnessAccessText}" Style="{StaticResource Caption}" Margin="0,8,0,0" />
+                                            </StackPanel>
+                                        </Border>
                                         <TextBlock Text="Clipboard" Style="{StaticResource SectionHeading}" />
                                         <Border Style="{StaticResource SettingRow}">
                                             <Grid>
