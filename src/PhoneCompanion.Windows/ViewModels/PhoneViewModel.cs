@@ -49,6 +49,16 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         ConnectionState.Connecting => "Connecting", ConnectionState.Connected when IsDemo => "Sample",
         ConnectionState.Connected => "Connected", _ => "Not connected"
     };
+    public string TrayStatus
+    {
+        get
+        {
+            if (!IsConnected) return Status;
+            var battery = _state.Battery is { } b ? $"{b.Level}%{(b.Charging ? " charging" : string.Empty)}" : null;
+            var data = _state.Cellular is null ? null : DataConnectionText;
+            return string.Join(" · ", new[] { Status, battery, data }.Where(value => value is not null));
+        }
+    }
     public string BatteryText => _state.Battery is { } b ? $"{b.Level}% · {(b.Charging ? "Charging" : "Not charging")}" : "Battery unavailable";
     public string BatteryLevelText => _state.Battery is { } b ? $"{b.Level}%" : "—";
     public int BatteryLevel => _state.Battery?.Level ?? 0;

@@ -2,13 +2,13 @@
 
 ## Status
 
-**Proposed; requires user decision before security architecture changes.** Recorded 17 September 2026. Existing v1 is an observed baseline, not independently reviewed or newly approved.
+**MVP direction accepted; production security review remains required.** Proposed 17 September 2026; accepted as the interim MVP direction on 19 September 2026. The current v1 channel remains isolated behind session/transport interfaces and has not received an independent security review.
 
 ## Context
 
 Current pairing uses persistent P-256 CNG/Android Keystore signing identities, a bespoke committed ephemeral-key/proof exchange, transcript-derived code comparison, mutual encrypted consent/hello and directional AES-GCM records. One peer is persisted on each platform. Tests prove successful interoperability, not adversarial assurance. The user requires cryptographic trust, established primitives, no invented cryptography and explicit approval of major security/transport/storage decisions.
 
-## Decision needing approval
+## Decision
 
 Choose a channel direction before expanding sensitive functionality:
 
@@ -17,7 +17,9 @@ Choose a channel direction before expanding sensitive functionality:
 | A — Isolate/retain v1 temporarily and require independent adversarial review/hardening before release | Preserves BLE-only application commands and current wire/pairing behavior; smallest immediate implementation disruption | Continues owning a bespoke handshake/record construction, its audit burden and unresolved malicious-input/lifecycle behavior |
 | B — Established TLS sessions for LAN application traffic; BLE initially discovery/presence/bootstrap | Reduces bespoke security code and uses established channel implementations; generic identities/state/providers remain reusable | Requires approved authenticated first-trust provisioning, certificate/key-store feasibility, re-pairing/migration/downgrade policy; BLE-only application commands are unavailable until a reviewed channel is added |
 
-Recommend B, with a bounded feasibility/design substage before implementation. Neither accepting arbitrary TLS certificates nor putting an unauthenticated public key into a pin store establishes trust. Do not promise that current identity keys/records migrate unchanged without testing platform APIs.
+For the MVP, use Option A: retain the current encrypted v1 channel and continue user-facing feature work. Defer TLS/trust migration, adversarial review and release hardening until after the MVP. This decision does not certify the channel as production-ready and does not approve sensitive features that need separate product or permission decisions.
+
+For post-MVP work, Option B remains the recommended direction, with a bounded feasibility/design substage before implementation. Neither accepting arbitrary TLS certificates nor putting an unauthenticated public key into a pin store establishes trust. Do not promise that current identity keys/records migrate unchanged without testing platform APIs.
 
 ## Alternatives
 

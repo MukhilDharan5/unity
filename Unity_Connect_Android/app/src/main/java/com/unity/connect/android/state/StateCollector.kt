@@ -17,6 +17,9 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
+import android.telephony.SignalStrength
+import android.telephony.TelephonyCallback
+import android.telephony.TelephonyDisplayInfo
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
 import com.unity.connect.android.core.BatteryState
@@ -91,18 +94,31 @@ class StateCollector(
     private fun cellularFlow(): Flow<CellularState?> = callbackFlow {
         val connectivity = context.getSystemService(ConnectivityManager::class.java)
         val telephony = context.getSystemService(TelephonyManager::class.java)
+        val canReadPhoneState = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.READ_PHONE_STATE
+        ) == PackageManager.PERMISSION_GRANTED
+        val stateLock = Any()
+        var networkType = if (canReadPhoneState) {
+            runCatching { telephony.dataNetworkType }.getOrDefault(TelephonyManager.NETWORK_TYPE_UNKNOWN)
+        } else {
+            TelephonyManager.NETWORK_TYPE_UNKNOWN
+        }
+        var displayOverride = TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NONE
+        var signalLevel = if (canReadPhoneState) runCatching { telephony.signalStrength?.level }.getOrNull() else null
 
         fun sendState() {
             try {
                 val capabilities = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
                 val cellularData = capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true
                 val wifi = capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+                val radio = synchronized(stateLock) { Triple(networkType, displayOverride, signalLevel) }
                 trySend(
                     CellularState(
                         isUsingCellularData = cellularData,
                         isUsingWifi = wifi,
-                        network = networkGeneration(telephony),
-                        signal = signalLevel(telephony)
+                        network = networkGeneration(radio.first, radio.second),
+                        signal = signalLevel(radio.third)
                     )
                 )
             } catch (_: SecurityException) {
@@ -117,18 +133,48 @@ class StateCollector(
             override fun onAvailable(network: Network) = sendState()
             override fun onLost(network: Network) = sendState()
         }
+        val telephonyCallback = object : TelephonyCallback(),
+            TelephonyCallback.DataConnectionStateListener,
+            TelephonyCallback.DisplayInfoListener,
+            TelephonyCallback.SignalStrengthsListener {
+            override fun onDataConnectionStateChanged(state: Int, updatedNetworkType: Int) {
+                synchronized(stateLock) { networkType = updatedNetworkType }
+                sendState()
+            }
+
+            override fun onDisplayInfoChanged(info: TelephonyDisplayInfo) {
+                synchronized(stateLock) { displayOverride = info.overrideNetworkType }
+                sendState()
+            }
+
+            override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
+                synchronized(stateLock) { signalLevel = signalStrength.level }
+                sendState()
+            }
+        }
+        var networkCallbackRegistered = false
+        var telephonyCallbackRegistered = false
         runCatching {
             connectivity.registerDefaultNetworkCallback(callback)
-            sendState()
+            networkCallbackRegistered = true
         }.onFailure { trySend(null) }
-        awaitClose { runCatching { connectivity.unregisterNetworkCallback(callback) } }
+        if (canReadPhoneState) {
+            runCatching {
+                telephony.registerTelephonyCallback(context.mainExecutor, telephonyCallback)
+                telephonyCallbackRegistered = true
+            }
+        }
+        sendState()
+        awaitClose {
+            if (networkCallbackRegistered) runCatching { connectivity.unregisterNetworkCallback(callback) }
+            if (telephonyCallbackRegistered) runCatching { telephony.unregisterTelephonyCallback(telephonyCallback) }
+        }
     }.distinctUntilChanged()
 
-    private fun networkGeneration(telephony: TelephonyManager): String {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-            return "unknown"
-        }
-        return when (runCatching { telephony.dataNetworkType }.getOrDefault(TelephonyManager.NETWORK_TYPE_UNKNOWN)) {
+    private fun networkGeneration(networkType: Int, displayOverride: Int): String {
+        if (displayOverride == TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_NSA ||
+            displayOverride == TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_ADVANCED) return "5g"
+        return when (networkType) {
             TelephonyManager.NETWORK_TYPE_NR -> "5g"
             TelephonyManager.NETWORK_TYPE_LTE -> "4g"
             TelephonyManager.NETWORK_TYPE_UMTS,
@@ -145,16 +191,14 @@ class StateCollector(
         }
     }
 
-    private fun signalLevel(telephony: TelephonyManager): String = runCatching {
-        when (telephony.signalStrength?.level) {
-            0 -> "none"
-            1 -> "poor"
-            2 -> "fair"
-            3 -> "good"
-            4 -> "excellent"
-            else -> "unknown"
-        }
-    }.getOrDefault("unknown")
+    private fun signalLevel(level: Int?): String = when (level) {
+        0 -> "none"
+        1 -> "poor"
+        2 -> "fair"
+        3 -> "good"
+        4 -> "excellent"
+        else -> "unknown"
+    }
 
     private fun mediaFlow(): Flow<MediaState?> = callbackFlow {
         val sessions = context.getSystemService(MediaSessionManager::class.java)

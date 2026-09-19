@@ -1,6 +1,6 @@
 # Project progress and resume log
 
-Last updated: 19 September 2026. **Automatic authenticated LAN discovery is implemented for the MVP.** Reconnect, Android access state, portable builds and typed timing policy are also complete. Detailed diagnostics and broad validation are deferred.
+Last updated: 19 September 2026. **MVP feature work is continuing on the isolated encrypted v1 channel.** Automatic authenticated LAN discovery, reconnect, Android access state, portable builds and typed timing policy are complete. Detailed diagnostics and broad validation are deferred.
 
 ## Current instructions
 
@@ -15,7 +15,7 @@ Last updated: 19 September 2026. **Automatic authenticated LAN discovery is impl
 
 Stage 1A preserves existing JSON v1 messages, current WPF/Kotlin frameworks, trust storage and secure-session architecture. Aligning validation with the documented strict v1 contract is ordinary corrective work within the authorized foundation stage.
 
-Security-channel direction (ADR-003) and future Windows UI direction (ADR-004) remain undecided. Starting Stage 1 does not approve TLS migration, loss of BLE-only commands, WinUI migration, new permissions, wire fields or persistence formats. Ask directly in chat before those changes. They do not block Stage 1A.
+ADR-003 now records the accepted interim MVP direction: retain the isolated encrypted v1 channel, then revisit TLS/trust migration and independent review after the MVP. Future Windows UI direction (ADR-004) remains undecided. This does not approve TLS migration, loss of BLE-only commands, WinUI migration, new permissions, wire fields or persistence formats. Ask directly in chat before those changes.
 
 ## Small-stage plan
 
@@ -201,8 +201,12 @@ Connection timeouts/backoff are centralized in typed policy objects on Android a
 
 Windows now sends a bounded local mDNS query for Android's existing `_phonecomp._tcp.local` advertisement, parses compressed PTR/SRV/A/AAAA responses, and offers **Find phone on this network** before manual address entry. Trusted reconnect tries the saved endpoint, newly discovered endpoints, then BLE; a changed endpoint is persisted only after the existing secure session authenticates the saved phone identity. Discovery remains a routing hint and does not change trust or wire bytes. Manual Wi-Fi and BLE remain available. Windows Release compilation passes with 0 warnings/errors; runtime network testing is deferred.
 
+### 19 September 2026 — Live phone status started
+
+The user chose MVP implementation speed over a TLS migration and deferred broad testing/debugging. ADR-003 records retaining the current isolated encrypted v1 channel for the MVP, without treating it as independently reviewed or production-hardened. Android cellular state now reacts to data-generation, 5G display override and signal-strength callbacks using the already-declared phone-state permission, while connectivity callbacks continue to report Wi-Fi/mobile-data use. The Windows tray tooltip now includes connection, battery/charging and data-route status. No permission, wire format, persistence format or dependency changed. The Android Kotlin compile emitted the updated state collector classes; the focused Windows Release build passed with 0 warnings/errors. Broader validation remains deferred.
+
 ## Next concrete resume action
 
-Next major coding choice: retain the current encrypted v1 channel for the MVP and move into remaining user-facing feature work, or pause feature work for a TLS/trust migration. The current implementation is isolated behind transport/session interfaces, but changing it affects pairing compatibility and requires an explicit decision.
+Continue the remaining MVP user-facing feature work on the current isolated v1 channel. Prefer features that use existing permissions and messages. Ask directly before any new Android permission, wire field, persistence format, ADB/scrcpy integration, hotspot control or media-direction expansion.
 
-Do not repeat Stage 0 or migrate TLS/WinUI based only on the instruction to begin Stage 1. Preserve the Windows UI and Android root build/helper edits. The user authorized the repository snapshot and GitHub push recorded above.
+Do not repeat Stage 0 or migrate TLS/WinUI without a new explicit decision. Preserve the Windows UI and Android root build/helper edits. The user authorized the repository snapshot and GitHub push recorded above.

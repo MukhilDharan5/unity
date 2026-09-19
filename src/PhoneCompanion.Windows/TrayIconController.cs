@@ -37,12 +37,17 @@ public sealed class TrayIconController : IDisposable
         _menu.Items.Add("Exit", null, (_, _) => ExitRequested?.Invoke());
         foreach (Forms.ToolStripItem item in _menu.Items) item.Padding = new Forms.Padding(7,5,12,5);
         ApplyMenuTheme();
-        _tray = new Forms.NotifyIcon { Text = "Phone Companion · Not connected", Icon = _icon, ContextMenuStrip = _menu, Visible = true };
+        _tray = new Forms.NotifyIcon { Text = "Unity Connect · Not connected", Icon = _icon, ContextMenuStrip = _menu, Visible = true };
         _tray.MouseClick += (_, e) => { if (e.Button == Forms.MouseButtons.Left) ToggleRequested?.Invoke(); };
     }
     public void SetDemo(bool enabled) => _demo.Checked = enabled;
     public void SetBusy(bool busy) => _demo.Enabled = !busy;
-    public void SetStatus(string status) => _tray.Text = $"Phone Companion · {status}";
+    public void SetStatus(string status)
+    {
+        const int maxTooltipLength = 63;
+        var tooltip = $"Unity Connect · {status}";
+        _tray.Text = tooltip.Length <= maxTooltipLength ? tooltip : tooltip[..maxTooltipLength];
+    }
     private void ApplyMenuTheme()
     {
         var dark = SystemThemeService.ReadSystemTheme() == AppTheme.Dark;

@@ -58,7 +58,8 @@ public partial class App : Application
         _tray.OpenRequested += ShowDesktop;
         _tray.DemoRequested += async enabled => await SetDemoAsync(enabled);
         _tray.ExitRequested += async () => await ExitAsync();
-        _viewModel.PropertyChanged += (_, _) => { _tray?.SetStatus(_viewModel.Status); _tray?.SetDemo(_viewModel.IsDemo); };
+        _viewModel.PropertyChanged += (_, _) => { _tray?.SetStatus(_viewModel.TrayStatus); _tray?.SetDemo(_viewModel.IsDemo); };
+        _tray.SetStatus(_viewModel.TrayStatus);
         _showWait = ThreadPool.RegisterWaitForSingleObject(_showSignal,
             (_, _) => Dispatcher.BeginInvoke(ShowDesktop), null, Timeout.Infinite, false);
         NetworkChange.NetworkAddressChanged += OnNetworkAddressChanged;
