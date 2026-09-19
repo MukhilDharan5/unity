@@ -47,6 +47,7 @@ data class UiState(
     val companionDndActive: Boolean = false,
     val clipboardSyncEnabled: Boolean = false,
     val featureNotice: String? = null,
+    val pcMedia: MediaState? = null,
     val wifiAddress: String? = null,
     val awaitingOtherDevice: Boolean = false,
     val access: AccessState = AccessState()
@@ -65,6 +66,7 @@ class ConnectionService : Service() {
             clipboard.updateEnabled(enabled); state.update { it.copy(clipboardSyncEnabled = enabled) }
         } }
         fun sendCurrentClipboard() { instance?.sendClipboard() }
+        fun sendPcMediaCommand(command: String) { instance?.sendPcMediaCommand(command) }
         fun setCompanionDndActive(active: Boolean) { instance?.dnd?.setCompanionRuleActive(active) }
         fun refreshDndState() { instance?.apply {
             dnd.refresh(); refreshAccessState(); refreshAddress(); restartCollector()
@@ -90,6 +92,7 @@ class ConnectionService : Service() {
     private var lanRetry: Job? = null
     private var bleRetryAttempt = 0
     private var lanRetryAttempt = 0
+    private var pcMediaCommand: Job? = null
     @Volatile private var bleEpoch = 0L
     @Volatile private var lanEpoch = 0L
     private var networkCallbackRegistered = false
@@ -378,7 +381,8 @@ class ConnectionService : Service() {
         if (!scope.isActive) return
         state.update { it.copy(connectionState = if (owner.hasSessions) ConnectionState.CONNECTED else ConnectionState.DISCONNECTED,
             sasCode = if (consent == null) null else it.sasCode,
-            awaitingOtherDevice = if (consent == null) false else it.awaitingOtherDevice) }
+            awaitingOtherDevice = if (consent == null) false else it.awaitingOtherDevice,
+            pcMedia = if (owner.hasSessions) it.pcMedia else null) }
         if (!owner.hasSessions) stopCollector()
         else latest?.let { snapshot -> sendActive(MessageCodec.encodePhoneSnapshot(snapshot).toByteArray(Charsets.UTF_8)) }
         notifyState()
@@ -389,9 +393,29 @@ class ConnectionService : Service() {
     private fun handleIncoming(payload: ByteArray) {
         when (val message = MessageCodec.decodeIncoming(payload)) {
             is IncomingMessage.MediaCommand -> collector.dispatchMediaCommand(message.command)
+            is IncomingMessage.PcMediaUpdate -> state.update { it.copy(pcMedia = message.state) }
             is IncomingMessage.DndRuleCommand -> dnd.setCompanionRuleActive(message.active)
             is IncomingMessage.ClipboardUpdate -> if (clipboard.enabled) clipboard.applyIncoming(message.content)
             null -> Unit
+        }
+    }
+    private fun sendPcMediaCommand(command: String) {
+        val media = state.value.pcMedia
+        val allowed = when (command) {
+            "play_pause" -> media?.capabilities?.playPause == true
+            "next_track" -> media?.capabilities?.nextTrack == true
+            "previous_track" -> media?.capabilities?.previousTrack == true
+            else -> false
+        }
+        if (!allowed || owner.active() == null || pcMediaCommand?.isActive == true) return
+        val generation = owner.generation
+        pcMediaCommand = scope.launch {
+            try {
+                val sent = sendActive(MessageCodec.encodePcMediaCommand(command).toByteArray(Charsets.UTF_8))
+                if (!sent && owner.isCurrentGeneration(generation)) state.update {
+                    it.copy(featureNotice = "The laptop media control could not be sent.")
+                }
+            } finally { pcMediaCommand = null }
         }
     }
     private fun sendClipboard() {
@@ -413,6 +437,7 @@ class ConnectionService : Service() {
         owner.revoke()
         pairingUntil = 0; consent?.complete(false); consent = null
         pairingExpiry?.cancel(); pairingExpiry = null
+        pcMediaCommand?.cancel(); pcMediaCommand = null
         prefs.edit().clear().commit()
         clipboard.updateEnabled(false)
         stopListeners()
@@ -432,10 +457,11 @@ class ConnectionService : Service() {
     override fun onDestroy() {
         instance = null
         unregisterRuntimeSignals()
-        owner.close(); stopCollector()
+        owner.close(); stopCollector(); pcMediaCommand?.cancel(); pcMediaCommand = null
         pairingExpiry?.cancel(); pairingExpiry = null
         stopListeners(); scope.cancel(); dnd.close()
-        state.update { it.copy(connectionState = ConnectionState.DISCONNECTED, sasCode = null, awaitingOtherDevice = false) }
+        state.update { it.copy(connectionState = ConnectionState.DISCONNECTED, sasCode = null,
+            awaitingOtherDevice = false, pcMedia = null) }
         super.onDestroy()
     }
 }

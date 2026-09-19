@@ -9,6 +9,7 @@ using PhoneCompanion.Core.State;
 using PhoneCompanion.Core.Transports;
 using PhoneCompanion.Windows.Clipboard;
 using PhoneCompanion.Windows.Connection;
+using PhoneCompanion.Windows.Media;
 using PhoneCompanion.Windows.ViewModels;
 
 namespace PhoneCompanion.Windows;
@@ -25,6 +26,8 @@ public partial class App : Application
     private TrayIconController? _tray;
     private SystemThemeService? _theme;
     private ClipboardSyncCoordinator? _clipboard;
+    private WindowsMediaController? _windowsMedia;
+    private PhoneScreenLauncher? _phoneScreen;
     private PairingWindow? _pairing;
     private readonly IdentityAndTrustStore _connectionStore = new();
     private CancellationTokenSource? _reconnect;
@@ -46,8 +49,12 @@ public partial class App : Application
         _theme.Start();
         _manager = new PhoneStateManager(_codec);
         _manager.StateChanged += OnPhoneStateChanged;
+        _manager.PcMediaCommandReceived += OnPcMediaCommandReceived;
+        _windowsMedia = await WindowsMediaController.CreateAsync();
+        _windowsMedia.StateChanged += OnWindowsMediaChanged;
+        _phoneScreen = new PhoneScreenLauncher();
         _clipboard = new ClipboardSyncCoordinator(_manager, new WindowsClipboardService(Dispatcher), Dispatcher);
-        _viewModel = new PhoneViewModel(_manager, Dispatcher, _clipboard);
+        _viewModel = new PhoneViewModel(_manager, Dispatcher, _clipboard, _phoneScreen.Open);
         _flyout = new FlyoutWindow { DataContext = _viewModel };
         _desktop = new MainWindow { DataContext = _viewModel };
         MainWindow = _desktop;
@@ -55,6 +62,7 @@ public partial class App : Application
         _tray.ToggleRequested += () => _flyout.ToggleAtCursor();
         _tray.ShowRequested += () => _flyout.ShowAtCursor();
         _tray.ConnectRequested += ShowPairing;
+        _tray.OpenPhoneRequested += () => { _viewModel.OpenPhone.Execute(null); _flyout.ShowAtCursor(); };
         _tray.OpenRequested += ShowDesktop;
         _tray.DemoRequested += async enabled => await SetDemoAsync(enabled);
         _tray.ExitRequested += async () => await ExitAsync();
@@ -78,8 +86,28 @@ public partial class App : Application
     }
     private void OnPhoneStateChanged(PhoneCompanion.Core.Models.PhoneState state)
     {
+        if (state.Connection == PhoneCompanion.Core.Models.ConnectionState.Connected && !state.IsDemo)
+            Dispatcher.BeginInvoke(async () => await PublishWindowsMediaAsync(_windowsMedia?.Current));
         if (_exiting || _suppressReconnect || state.Connection != PhoneCompanion.Core.Models.ConnectionState.Disconnected || state.IsDemo) return;
         Dispatcher.BeginInvoke(StartReconnectLoop);
+    }
+    private void OnWindowsMediaChanged(PhoneCompanion.Core.Models.MediaState? state) =>
+        Dispatcher.BeginInvoke(async () => await PublishWindowsMediaAsync(state));
+    private void OnPcMediaCommandReceived(PhoneCompanion.Core.Models.MediaCommand command)
+    {
+        if (_exiting || _windowsMedia is null) return;
+        Dispatcher.BeginInvoke(async () => await _windowsMedia.ExecuteAsync(command));
+    }
+    private async Task PublishWindowsMediaAsync(PhoneCompanion.Core.Models.MediaState? state)
+    {
+        if (_exiting || _manager is null) return;
+        var result = await _manager.SendPcMediaAsync(state);
+        if (result == PhoneCompanion.Core.Models.CommandResult.Unavailable &&
+            _manager.Current.Connection == PhoneCompanion.Core.Models.ConnectionState.Connected)
+        {
+            await Task.Delay(150);
+            if (!_exiting) await _manager.SendPcMediaAsync(_windowsMedia?.Current);
+        }
     }
     private void OnNetworkAddressChanged(object? sender, EventArgs e)
     {
@@ -184,6 +212,8 @@ public partial class App : Application
         _tray?.Dispose(); _tray = null;
         _theme?.Dispose(); _theme = null;
         _viewModel?.Dispose();
+        if (_manager is not null) _manager.PcMediaCommandReceived -= OnPcMediaCommandReceived;
+        if (_windowsMedia is not null) { _windowsMedia.StateChanged -= OnWindowsMediaChanged; _windowsMedia.Dispose(); _windowsMedia = null; }
         _pairing?.Close(); _pairing = null;
         _clipboard?.Dispose(); _clipboard = null;
         if (_manager is not null) { _manager.StateChanged -= OnPhoneStateChanged; await _manager.DisposeAsync(); }
@@ -200,6 +230,8 @@ public partial class App : Application
         _viewModel?.Dispose();
         _clipboard?.Dispose();
         if (_manager is not null) _manager.StateChanged -= OnPhoneStateChanged;
+        if (_manager is not null) _manager.PcMediaCommandReceived -= OnPcMediaCommandReceived;
+        if (_windowsMedia is not null) { _windowsMedia.StateChanged -= OnWindowsMediaChanged; _windowsMedia.Dispose(); _windowsMedia = null; }
         StopReconnectLoop();
         _showSignal?.Dispose();
         if (_ownsMutex) _singleInstance?.ReleaseMutex();

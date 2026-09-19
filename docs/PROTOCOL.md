@@ -93,6 +93,22 @@ Media controls use this message:
 
 Windows sends media commands only when the current media capabilities allow them. It never executes an incoming `media_command` on Windows.
 
+Windows media state uses the same bounded media shape in a direction-specific message:
+
+```json
+{"version":1,"type":"pc_media","state":{"source":"Music","title":"Song Title","artist":"Artist Name","isPlaying":true,"capabilities":{"playPause":true,"nextTrack":true,"previousTrack":true}}}
+```
+
+Windows sends `{"version":1,"type":"pc_media","state":null}` when no controllable current media session is available. Android displays this state but does not infer controls beyond the three advertised capability flags.
+
+Android controls the advertised Windows session with the matching direction-specific command:
+
+```json
+{"version":1,"type":"pc_media_command","command":"play_pause"}
+```
+
+`command` is `play_pause`, `next_track`, or `previous_track`. Android drops unavailable or repeated in-flight commands. Windows executes the command only through the current Global System Media Transport Controls session and publishes the resulting state; writes are not application acknowledgments and are not retried across transports.
+
 Companion DND changes use a distinct command:
 
 ```json

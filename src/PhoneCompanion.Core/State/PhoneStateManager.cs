@@ -20,6 +20,7 @@ public sealed class PhoneStateManager(IPhoneMessageCodec codec) : IAsyncDisposab
     public event Action<DecodeError>? MessageRejected;
     public event Action<Exception>? TransportFaulted;
     public event Action<ClipboardContent>? ClipboardReceived;
+    public event Action<MediaCommand>? PcMediaCommandReceived;
 
     public async Task<bool> SetTransportAsync(IPhoneTransport? transport, CancellationToken cancellationToken = default)
     {
@@ -86,6 +87,11 @@ public sealed class PhoneStateManager(IPhoneMessageCodec codec) : IAsyncDisposab
             {
                 // Sample mode is never trusted for clipboard access.
                 if (_current.Transport != TransportKind.Mock) ClipboardReceived?.Invoke(clipboard.Content);
+                return;
+            }
+            if (decoded.Message is PcMediaCommandMessage pcMediaCommand)
+            {
+                if (_current.Transport != TransportKind.Mock) PcMediaCommandReceived?.Invoke(pcMediaCommand.Command);
                 return;
             }
             var next = decoded.Message switch
@@ -162,6 +168,23 @@ public sealed class PhoneStateManager(IPhoneMessageCodec codec) : IAsyncDisposab
             }
             if (transport is null) return CommandResult.Unavailable;
             return await SendMessageAsync(transport, new ClipboardUpdate(content), cancellationToken).ConfigureAwait(false);
+        }
+        finally { _operations.Release(); }
+    }
+    public async Task<CommandResult> SendPcMediaAsync(MediaState? state, CancellationToken cancellationToken = default)
+    {
+        if (!await _operations.WaitAsync(0, cancellationToken).ConfigureAwait(false)) return CommandResult.Unavailable;
+        try
+        {
+            IPhoneTransport? transport;
+            lock (_sync)
+            {
+                if (_disposed || _current.Connection != ConnectionState.Connected || _current.Transport == TransportKind.Mock)
+                    return CommandResult.Unavailable;
+                transport = _transport;
+            }
+            if (transport is null) return CommandResult.Unavailable;
+            return await SendMessageAsync(transport, new PcMediaUpdate(state), cancellationToken).ConfigureAwait(false);
         }
         finally { _operations.Release(); }
     }

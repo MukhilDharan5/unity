@@ -10,10 +10,10 @@ Status: observed implementation, 17 September 2026. “Implemented” means code
 | Battery | Android -> Windows | Nullable snapshot section | Phone broadcast/hardware validation |
 | Network/cellular | Android -> Windows | Permission-aware friendly categories and event callbacks | Physical-device and multi-SIM policy validation absent |
 | Sound mode | Android -> Windows, read-only | Nullable snapshot section | No sound-mode command/provider |
-| Media control | Windows -> phone; state Android -> Windows | Per-session `playPause`, `nextTrack`, `previousTrack` flags | No Windows media provider or reverse direction; Android dispatch does not separately enforce each advertised action |
+| Media control | State and commands in both directions | Per-session `playPause`, `nextTrack`, `previousTrack` flags | Windows current-session selection and both platform action behavior need device/app validation |
 | Companion DND | Windows/local Android -> app-owned Android rule | `canControlCompanionRule`, nullable rule state | No Windows DND provider or cross-device automation policy |
 | Clipboard | Both directions, text only | Independent opt-in and connected real route | No negotiated remote enablement/support or route suitability; Android send is manual |
-| Screen/control | Absent | None | scrcpy integration deferred |
+| Screen/control | Optional scrcpy launcher on Windows | Local executable and Android debugging authorization | No bundled executable or automated wireless-debugging setup |
 | OEM laptop profile | Absent | None | Requires provider discovery and hardware research |
 | Brightness/ambient/pocket | Absent | None | Requires permission/sensor models and device validation |
 | Headphone handoff/hotspot/audio | Absent | None | Public/OEM/optional privileged feasibility unresolved |

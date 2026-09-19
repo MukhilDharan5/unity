@@ -1,12 +1,12 @@
 # Windows implementation and UX assessment
 
-Status: updated through Stage 1B-W, 17 September 2026. Sources are in `src/PhoneCompanion.Windows/`; no framework migration was made. See [PROGRESS.md](../PROGRESS.md) for the next checkpoint.
+Status: updated through the bidirectional-media and Open phone MVP checkpoints, 19 September 2026. Sources are in `src/PhoneCompanion.Windows/`; no framework migration was made. See [PROGRESS.md](../PROGRESS.md) for the next checkpoint.
 
 ## Host and platform boundaries
 
 The user-level .NET 10 app targets Windows SDK 26100 with minimum supported API 19041, uses WPF for windows, WinForms for tray/context menu, WinRT for BLE and P/Invoke for clipboard/window behavior. The manifest requests `asInvoker`, PerMonitorV2 DPI awareness and long paths. There is no privileged service, driver, installer, scheduled startup registration or Credential Provider.
 
-`App.xaml.cs` composes the manager, codec, theme service, clipboard coordinator, shared view model, flyout, desktop and tray. A named local mutex plus event provides single-instance/show behavior. Default launch opens the desktop dashboard; `--tray` suppresses it, `--flyout` opens quick controls and `--demo` selects explicit fictional data. Closing windows hides them; tray Exit awaits manager teardown.
+`App.xaml.cs` composes the manager, codec, theme service, clipboard coordinator, Windows media controller, optional phone-screen launcher, shared view model, flyout, desktop and tray. A named local mutex plus event provides single-instance/show behavior. Default launch opens the desktop dashboard; `--tray` suppresses it, `--flyout` opens quick controls and `--demo` selects explicit fictional data. Closing windows hides them; tray Exit awaits manager teardown.
 
 ## Presentation
 
@@ -16,7 +16,9 @@ The desktop has a native title bar with DWM dark caption/rounded-corner requests
 
 `SystemThemeService` follows the app light/dark registry preference and system preference events. Accent colors are fixed blue; there is no system-accent or high-contrast integration. Many controls have accessible names, keyboard focus visuals and tooltips. Switch-shaped controls are `Button` templates, so they do not automatically expose toggle state through UI Automation.
 
-`TrayIconController` draws a 32-pixel phone icon and themes a WinForms context menu. Its tooltip is only `Phone Companion · <status>`. Battery/friendly trusted-device name/OEM performance status are not supplied. No OEM laptop, audio-routing or scrcpy controls exist.
+`TrayIconController` draws a 32-pixel phone icon and themes a WinForms context menu. Its tooltip includes connection, battery/charging and data-route status. The menu, flyout and full window expose **Open phone**. `PhoneScreenLauncher` detects scrcpy from a packaged location, `UNITY_CONNECT_SCRCPY`, common install directories or `PATH`, then launches it without a console. It does not bundle/download scrcpy, automate Android debugging authorization or use ADB as the companion transport.
+
+`WindowsMediaController` observes the current Global System Media Transport Controls session, normalizes bounded source/title/artist text and publishes playback/capability changes to the authenticated phone. Android commands are checked against the current Windows session's play/pause, next and previous capabilities before calling the matching platform action. Session/app behavior still needs runtime validation.
 
 ## UI review performed
 

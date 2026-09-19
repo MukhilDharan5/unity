@@ -198,7 +198,9 @@
                 <TextBlock Text="{Binding Footer}" TextWrapping="Wrap" TextAlignment="Center"
                            Foreground="{DynamicResource SecondaryText}" FontSize="10" Margin="0,24,0,0"
                            AutomationProperties.LiveSetting="Polite" />
-                <Button Style="{StaticResource PrimaryButton}" Content="Connect phone" Height="34" MinHeight="0" Padding="12,7" Margin="0,12,0,0" Click="OnConnectPhone"
+                <Button Style="{StaticResource PrimaryButton}" Content="Open phone" Height="34" MinHeight="0" Padding="12,7" Margin="0,12,0,0"
+                        Command="{Binding OpenPhone}" AutomationProperties.Name="Open phone screen" />
+                <Button Style="{StaticResource TextButton}" Content="Connect phone" Height="30" MinHeight="0" Padding="12,6" Margin="0,4,0,0" Click="OnConnectPhone"
                         AutomationProperties.Name="Connect or change phone" />
                 <Button Style="{StaticResource TextButton}" Content="Open Unity Connect" FontSize="10" Height="26" MinHeight="0" Padding="8,4" Margin="0,4,0,0" Click="OnOpenDesktop" />
             </StackPanel>

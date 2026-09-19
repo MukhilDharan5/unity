@@ -15,18 +15,21 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     private readonly PhoneStateManager _manager;
     private readonly Dispatcher _dispatcher;
     private readonly ClipboardSyncCoordinator? _clipboard;
+    private readonly Func<string?>? _openPhone;
     private PhoneState _state;
     private bool _busy;
     private bool _disposed;
     private string? _commandNotice;
-    public PhoneViewModel(PhoneStateManager manager, Dispatcher dispatcher, ClipboardSyncCoordinator? clipboard = null)
+    public PhoneViewModel(PhoneStateManager manager, Dispatcher dispatcher, ClipboardSyncCoordinator? clipboard = null,
+        Func<string?>? openPhone = null)
     {
-        _manager = manager; _dispatcher = dispatcher; _clipboard = clipboard; _state = manager.Current;
+        _manager = manager; _dispatcher = dispatcher; _clipboard = clipboard; _openPhone = openPhone; _state = manager.Current;
         Previous = new AsyncCommand(() => SendAsync(MediaCommand.PreviousTrack), () => CanControl && _state.Media?.Capabilities.PreviousTrack == true);
         PlayPause = new AsyncCommand(() => SendAsync(MediaCommand.PlayPause), () => CanControl && _state.Media?.Capabilities.PlayPause == true);
         Next = new AsyncCommand(() => SendAsync(MediaCommand.NextTrack), () => CanControl && _state.Media?.Capabilities.NextTrack == true);
         ToggleDndRule = new AsyncCommand(ToggleDndRuleAsync, () => !_busy && CanControlDndRule);
         ToggleClipboard = new AsyncCommand(ToggleClipboardAsync, () => !_busy && _clipboard is not null);
+        OpenPhone = new AsyncCommand(OpenPhoneAsync, () => !_busy && _openPhone is not null);
         manager.StateChanged += OnStateChanged;
         if (_clipboard is not null)
         {
@@ -40,6 +43,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     public AsyncCommand Next { get; }
     public AsyncCommand ToggleDndRule { get; }
     public AsyncCommand ToggleClipboard { get; }
+    public AsyncCommand OpenPhone { get; }
     public bool IsConnected => _state.Connection == ConnectionState.Connected;
     public bool IsDemo => _state.IsDemo;
     public bool HasMedia => _state.Media?.IsPlaying == true;
@@ -177,6 +181,13 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         Refresh();
         return Task.CompletedTask;
     }
+    private Task OpenPhoneAsync()
+    {
+        _commandNotice = _openPhone?.Invoke();
+        if (_commandNotice is null) _commandNotice = "Opening your phone…";
+        Refresh();
+        return Task.CompletedTask;
+    }
     private void OnClipboardChanged()
     {
         if (_disposed || _dispatcher.HasShutdownStarted) return;
@@ -190,7 +201,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     private void Refresh()
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
-        Previous.Refresh(); PlayPause.Refresh(); Next.Refresh(); ToggleDndRule.Refresh(); ToggleClipboard.Refresh();
+        Previous.Refresh(); PlayPause.Refresh(); Next.Refresh(); ToggleDndRule.Refresh(); ToggleClipboard.Refresh(); OpenPhone.Refresh();
     }
     public void Dispose()
     {

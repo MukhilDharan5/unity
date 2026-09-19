@@ -39,6 +39,14 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
                     MediaCommand.PreviousTrack => "previous_track", _ => throw new ArgumentOutOfRangeException(nameof(message))
                 };
                 break;
+            case PcMediaUpdate m:
+                root["type"] = "pc_media";
+                root["state"] = Media(m.State);
+                break;
+            case PcMediaCommandMessage m:
+                root["type"] = "pc_media_command";
+                root["command"] = MediaCommandText(m.Command);
+                break;
             case DndRuleCommandMessage m:
                 root["type"] = "dnd_rule_command";
                 root["active"] = m.Active;
@@ -80,6 +88,8 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
                     "play_pause" => MediaCommand.PlayPause, "next_track" => MediaCommand.NextTrack,
                     "previous_track" => MediaCommand.PreviousTrack, _ => throw new FormatException()
                 }),
+                "pc_media" => new PcMediaUpdate(ReadNullable(r.GetProperty("state"), ReadMedia)),
+                "pc_media_command" => new PcMediaCommandMessage(ReadMediaCommand(r)),
                 "dnd_rule_command" => new DndRuleCommandMessage(Bool(r, "active")),
                 "clipboard" => new ClipboardUpdate(ReadClipboard(r)),
                 _ => null
@@ -204,6 +214,20 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
         ["signal"] = s.Signal.ToString().ToLowerInvariant()
     };
     private static string Sound(SoundMode s) => s.ToString().ToLowerInvariant();
+    private static MediaCommand ReadMediaCommand(JsonElement r) => Text(r, "command", 32, true) switch
+    {
+        "play_pause" => MediaCommand.PlayPause,
+        "next_track" => MediaCommand.NextTrack,
+        "previous_track" => MediaCommand.PreviousTrack,
+        _ => throw new FormatException()
+    };
+    private static string MediaCommandText(MediaCommand command) => command switch
+    {
+        MediaCommand.PlayPause => "play_pause",
+        MediaCommand.NextTrack => "next_track",
+        MediaCommand.PreviousTrack => "previous_track",
+        _ => throw new ArgumentOutOfRangeException(nameof(command))
+    };
     private static void Copy(JsonObject from, JsonObject to)
     {
         foreach (var (key, value) in from) to[key] = value?.DeepClone();

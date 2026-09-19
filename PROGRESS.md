@@ -205,8 +205,14 @@ Windows now sends a bounded local mDNS query for Android's existing `_phonecomp.
 
 The user chose MVP implementation speed over a TLS migration and deferred broad testing/debugging. ADR-003 records retaining the current isolated encrypted v1 channel for the MVP, without treating it as independently reviewed or production-hardened. Android cellular state now reacts to data-generation, 5G display override and signal-strength callbacks using the already-declared phone-state permission, while connectivity callbacks continue to report Wi-Fi/mobile-data use. The Windows tray tooltip now includes connection, battery/charging and data-route status. No permission, wire format, persistence format or dependency changed. The Android Kotlin compile emitted the updated state collector classes; the focused Windows Release build passed with 0 warnings/errors. Broader validation remains deferred.
 
+### 19 September 2026 — Bidirectional media and Open phone implemented
+
+The user explicitly approved both the Windows-to-Android media direction and scrcpy/ADB integration. Windows now observes the current Global System Media Transport Controls session and sends bounded source/title/artist, playback state and available controls in the additive authenticated `pc_media` message. Android displays a **Playing on laptop** card and sends capability-gated, single-in-flight `pc_media_command` actions for previous, play/pause and next. Windows executes them against the current platform media session and republishes resulting state. Existing phone-to-Windows media remains unchanged.
+
+Windows now exposes **Open phone** in the full app, flyout and tray. The launcher detects `scrcpy.exe` beside the app, in packaged tool folders, through `UNITY_CONNECT_SCRCPY`, common install locations or `PATH`; it starts scrcpy without a visible console. scrcpy is not downloaded or bundled, the local source checkout currently has no executable, Android debugging authorization remains external, and ADB is never used as the normal companion transport. No new Android permission, persistence format or dependency was added. Focused Windows Release compilation passed with 0 warnings/errors and Android Kotlin emitted the updated classes; broader tests/device debugging remain deferred.
+
 ## Next concrete resume action
 
-Continue the remaining MVP user-facing feature work on the current isolated v1 channel. Prefer features that use existing permissions and messages. Ask directly before any new Android permission, wire field, persistence format, ADB/scrcpy integration, hotspot control or media-direction expansion.
+Continue the remaining MVP user-facing feature work on the current isolated v1 channel. Media direction and optional scrcpy launch are now approved and implemented. Ask directly before any new Android permission, additional wire field, persistence format, hotspot/headphone control, brightness/sensor access or audio transport.
 
 Do not repeat Stage 0 or migrate TLS/WinUI without a new explicit decision. Preserve the Windows UI and Android root build/helper edits. The user authorized the repository snapshot and GitHub push recorded above.

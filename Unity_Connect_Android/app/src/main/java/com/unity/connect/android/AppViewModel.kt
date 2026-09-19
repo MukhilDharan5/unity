@@ -35,6 +35,10 @@ class AppViewModel : ViewModel() {
         ConnectionService.sendCurrentClipboard()
     }
 
+    fun sendPcMediaCommand(command: String) {
+        ConnectionService.sendPcMediaCommand(command)
+    }
+
     fun setCompanionDndActive(active: Boolean) {
         ConnectionService.setCompanionDndActive(active)
     }

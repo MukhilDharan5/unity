@@ -25,6 +25,8 @@ internal object V1MessageValidator {
             "sound_mode" -> sound(required(root, "mode"))
             "snapshot" -> snapshot(root)
             "media_command" -> require(text(root, "command", 32, true) in MEDIA_COMMANDS)
+            "pc_media" -> nullable(required(root, "state"), ::media)
+            "pc_media_command" -> require(text(root, "command", 32, true) in MEDIA_COMMANDS)
             "dnd_rule_command" -> boolean(root, "active")
             "clipboard" -> clipboard(root)
             else -> throw IllegalArgumentException("Unknown application message")
@@ -53,6 +55,7 @@ internal object V1MessageValidator {
 
     fun incoming(root: JsonObject): IncomingMessage? = when (text(root, "type", 32, true)) {
         "media_command" -> IncomingMessage.MediaCommand(text(root, "command", 32, true)!!)
+        "pc_media" -> IncomingMessage.PcMediaUpdate(nullable(required(root, "state"), ::media))
         "dnd_rule_command" -> IncomingMessage.DndRuleCommand(boolean(root, "active"))
         "clipboard" -> IncomingMessage.ClipboardUpdate(clipboard(root))
         else -> null // Valid phone-state messages are not commands for Android.

@@ -87,8 +87,12 @@
                         <TextBlock x:Name="PageTitle" Text="Phone" FontSize="28" FontWeight="SemiBold" />
                         <TextBlock x:Name="PageSubtitle" Text="Phone status and connected experiences." Style="{StaticResource Caption}" Margin="0,6,0,0" />
                     </StackPanel>
-                    <Button Grid.Column="1" Content="Connect phone" Style="{StaticResource PrimaryButton}" MinWidth="120"
-                            VerticalAlignment="Center" Click="OnConnectPhone" AutomationProperties.Name="Connect or manage phone" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="Open phone" Style="{StaticResource ActionButton}" MinWidth="108" Margin="0,0,10,0"
+                                Command="{Binding OpenPhone}" AutomationProperties.Name="Open phone screen" />
+                        <Button Content="Connect phone" Style="{StaticResource PrimaryButton}" MinWidth="120"
+                                Click="OnConnectPhone" AutomationProperties.Name="Connect or manage phone" />
+                    </StackPanel>
                 </Grid>
                 <ScrollViewer x:Name="PhoneScrollViewer" Grid.Row="1" Style="{StaticResource CleanScrollViewer}"
                               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,2">

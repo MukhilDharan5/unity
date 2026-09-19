@@ -66,6 +66,13 @@ data class BatteryMessage(val version: Int, val type: String, val level: Int, va
 data class MediaMessage(val version: Int, val type: String, val state: MediaState?)
 
 @Serializable
+data class PcMediaMessage(
+    val state: MediaState?,
+    val version: Int = 1,
+    val type: String = "pc_media"
+)
+
+@Serializable
 data class CellularMessage(
     val version: Int,
     val type: String,
@@ -96,10 +103,18 @@ data class MediaCommand(
 )
 
 @Serializable
+data class PcMediaCommand(
+    val command: String,
+    val version: Int = 1,
+    val type: String = "pc_media_command"
+)
+
+@Serializable
 data class CommandAck(val version: Int, val type: String, val command_id: String, val status: String)
 
 sealed interface IncomingMessage {
     data class MediaCommand(val command: String) : IncomingMessage
+    data class PcMediaUpdate(val state: MediaState?) : IncomingMessage
     data class DndRuleCommand(val active: Boolean) : IncomingMessage
     data class ClipboardUpdate(val content: ClipboardContent) : IncomingMessage
 }

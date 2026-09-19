@@ -1,6 +1,6 @@
 # Phone Companion
 
-The [progress and resume log](PROGRESS.md) records the current MVP checkpoint: automatic LAN discovery, reconnect/lifecycle coordination, live phone status, explicit Android access state, portable Android builds and typed connection policy are implemented. Work is proceeding implementation-first with minimal compile checks; broad validation is deferred. The [Stage 0 audit](CURRENT_STATE.md) is the historical assessment. The current encrypted v1 channel is the accepted interim MVP direction; any compatibility-changing security migration remains a separate post-MVP decision.
+The [progress and resume log](PROGRESS.md) records the current MVP checkpoint: automatic LAN discovery, reconnect/lifecycle coordination, live phone status, bidirectional media control, optional scrcpy launch, explicit Android access state, portable Android builds and typed connection policy are implemented. Work is proceeding implementation-first with minimal compile checks; broad validation is deferred. The [Stage 0 audit](CURRENT_STATE.md) is the historical assessment. The current encrypted v1 channel is the accepted interim MVP direction; any compatibility-changing security migration remains a separate post-MVP decision.
 
 A Windows desktop control app with a compact tray flyout and an Android companion. The two apps pair over BLE or Wi-Fi/LAN, verify a six-digit code, remember the approved device identity, and protect every application message with an authenticated encrypted session.
 
@@ -53,6 +53,8 @@ UI checks instantiate the actual XAML, view model and tray controller, exercise 
 | Tray and flyout | Implemented, with single-instance behavior and clean exit |
 | Battery, Wi-Fi/mobile data, cellular, media, DND, sound | Models, display, unavailable states, Android collectors, inbound updates |
 | Previous / play-pause / next | Capability-gated live commands plus working sample provider |
+| Windows media on Android | Current Windows media source/title/artist/playback and capability-gated controls |
+| Open phone | Launches a detected scrcpy installation without using ADB as the companion transport |
 | Companion DND | App-owned Android `AutomaticZenRule`; Windows control never changes manual/global DND directly |
 | Clipboard | Opt-in new-text sync, 12 KiB limit, loop suppression, no stored history; Android sends only on a visible user action |
 | Message layer | JSON v1 behind `IPhoneMessageCodec`; authenticated encryption and replay rejection below it |
@@ -64,6 +66,8 @@ UI checks instantiate the actual XAML, view model and tray controller, exercise 
 | Hardware validation | Requires an Android 12+ physical phone with BLE peripheral support and this Windows PC |
 
 Wi-Fi is the easiest first connection: the Android screen shows the address to enter on Windows. BLE discovery is also available from **Connect phone**. Windows tries the remembered Wi-Fi address and then BLE when it starts. Use **Connect phone** if the phone's address changed. No discovered device becomes trusted until both screens confirm the same code.
+
+**Open phone** looks for `scrcpy.exe` beside the Windows app, under `scrcpy/` or `tools/scrcpy/`, in common install locations, on `PATH`, or at the path set in `UNITY_CONNECT_SCRCPY`. scrcpy and Android debugging authorization remain optional and separate from Unity Connect pairing.
 
 ## Code map
 

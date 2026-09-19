@@ -2,7 +2,7 @@
 
 ## Status
 
-JSON v1 retained. Strict validation/shared-fixture correction authorized as Stage 1 and completed in checkpoint 1A on 17 September 2026. Replaceable Kotlin codec and wire evolution remain proposed. No new protocol version or envelope was implemented.
+JSON v1 retained. Strict validation/shared-fixture correction was completed in Stage 1A. On 19 September 2026, the user approved an additive bidirectional-media extension using `pc_media` and `pc_media_command`. Replaceable Kotlin codec and general wire evolution remain proposed. No new protocol version or envelope was implemented.
 
 ## Context
 
@@ -10,7 +10,7 @@ The MVP has small typed C# messages and Kotlin serializable models. Windows has 
 
 ## Decision
 
-Retain JSON v1 for existing messages. Stage 1A aligned strict application validation through 67 shared positive/negative fixtures and normalized Android media metadata before encoding. Exposing a replaceable Kotlin serialization boundary remains proposed. Only design a compatible addition/new version when required by approved capabilities/command semantics; do not silently turn unused acknowledgment models into a supported contract.
+Retain JSON v1 for existing messages. Stage 1A aligned strict application validation through 67 shared positive/negative fixtures and normalized Android media metadata before encoding. The approved media extension adds `pc_media`, carrying the existing bounded media-state shape from Windows to Android, and `pc_media_command`, carrying the existing three capability-gated commands from Android to Windows. Older peers reject or ignore these unknown application types without changing trust or transport state. Exposing a replaceable Kotlin serialization boundary remains proposed. Do not silently turn unused acknowledgment models into a supported contract.
 
 The existing uppercase `docs/PROTOCOL.md` remains the canonical protocol file to preserve tracked paths and links. Windows resolves the requested lowercase `docs/protocol.md` to that file; no case-only rename or conflicting duplicate was created.
 

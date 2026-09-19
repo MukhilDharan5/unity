@@ -11,6 +11,8 @@ public sealed record SoundModeUpdate(SoundMode State) : PhoneMessage;
 public sealed record StateSnapshot(BatteryState? Battery, MediaState? Media,
     CellularState? Cellular, DndState? Dnd, SoundMode? Sound) : PhoneMessage;
 public sealed record MediaCommandMessage(MediaCommand Command) : PhoneMessage;
+public sealed record PcMediaUpdate(MediaState? State) : PhoneMessage;
+public sealed record PcMediaCommandMessage(MediaCommand Command) : PhoneMessage;
 public sealed record DndRuleCommandMessage(bool Active) : PhoneMessage;
 public sealed record ClipboardUpdate(ClipboardContent Content) : PhoneMessage;
 

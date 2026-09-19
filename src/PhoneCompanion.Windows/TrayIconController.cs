@@ -16,6 +16,7 @@ public sealed class TrayIconController : IDisposable
     public event Action? ShowRequested;
     public event Action? ConnectRequested;
     public event Action? OpenRequested;
+    public event Action? OpenPhoneRequested;
     public event Action<bool>? DemoRequested;
     public event Action? ExitRequested;
     public bool Visible => _tray.Visible;
@@ -30,6 +31,7 @@ public sealed class TrayIconController : IDisposable
         _menu.Items.Add("Open Unity Connect", null, (_, _) => OpenRequested?.Invoke());
         _menu.Items.Add("Show phone", null, (_, _) => ShowRequested?.Invoke());
         _menu.Items.Add("Connect phone", null, (_, _) => ConnectRequested?.Invoke());
+        _menu.Items.Add("Open phone screen", null, (_, _) => OpenPhoneRequested?.Invoke());
         _demo = new Forms.ToolStripMenuItem("Use sample data") { CheckOnClick = false };
         _demo.Click += (_, _) => DemoRequested?.Invoke(!_demo.Checked);
         _menu.Items.Add(_demo);

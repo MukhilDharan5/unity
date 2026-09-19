@@ -92,6 +92,7 @@ object MessageCodec {
     fun encodeDndMessage(message: DndMessage): String = encodeApplication(message)
     fun encodeSoundMessage(message: SoundMessage): String = encodeApplication(message)
     fun encodeMediaCommand(command: MediaCommand): String = encodeApplication(command)
+    fun encodePcMediaCommand(command: String): String = encodeApplication(PcMediaCommand(command))
     fun decodeMediaCommand(data: String): MediaCommand {
         val root = V1MessageValidator.parse(data)
         V1MessageValidator.validate(root)
