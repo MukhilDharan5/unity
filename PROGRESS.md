@@ -1,6 +1,6 @@
 # Project progress and resume log
 
-Last updated: 19 September 2026. **Stage 1B-A1 — Android session publication/revocation is complete.** Stage 1A and 1B-W are complete; Stage 1 overall remains in progress. Next: 1B-A2 listener lifecycle, not started.
+Last updated: 19 September 2026. **Stage 1B-A2 — Android listener lifecycle is complete.** Stage 1A, 1B-W and 1B-A1 are complete; Stage 1 overall remains in progress. Next: 1C reconnect/lifecycle coordination, not started.
 
 ## Current instructions
 
@@ -24,7 +24,7 @@ Security-channel direction (ADR-003) and future Windows UI direction (ADR-004) r
 | 1A | Shared positive/negative JSON v1 fixtures, strict Android command/state validation, safe platform media metadata, regression verification | Completed; results below |
 | 1B-W | Windows live/core session ownership, cleanup and cancellation tests; preserve security protocol | Completed; results below |
 | 1B-A1 | Android route reservations, session publication/revocation, collector cleanup and cancellation tests | Completed; results below |
-| 1B-A2 | Android listener startup/shutdown and remaining provider lifecycle verification | Planned after session-owner checkpoint |
+| 1B-A2 | Android listener startup/shutdown and remaining provider lifecycle verification | Completed; results below |
 | 1C | Conservative reconnect coordination and lifecycle tests | Planned |
 | 1D | Local capability/permission/enablement model; negotiate any wire addition separately | Planned |
 | 1E | Redacted structured diagnostics, typed settings, reproducible helpers/toolchain pins | Planned |
@@ -153,8 +153,39 @@ Recommended next checkpoint: 1B-A2 Android listener resource startup/shutdown. D
 
 The user authorized committing and pushing all current non-ignored project changes. The snapshot covers the completed Stage 0, 1A, 1B-W and 1B-A1 implementation, tests, architecture and progress documentation, plus the preserved Windows dashboard and Android build/helper work. Generated build output, local toolchains, IDE state, local Android configuration and signing stores remain excluded by `.gitignore`. The configured target is `origin/main` at `https://github.com/MukhilDharan5/unity.git`. The validated results and remaining limitations above are the basis for this snapshot; no feature source changed after those checks.
 
+### 19 September 2026 — Stage 1B-A2 completed
+
+Authorized by the user's request to do the next coding stage. Reproduced the ownership gap in the provider design: LAN could finish socket creation after stop and then publish an endpoint/register NSD, while BLE reused one callback object and mutable server/device/pipe fields across restarts. A callback or pipe from an old run could therefore observe or act on newer state.
+
+Completed: added pure Kotlin `ListenerLifecycle`, which permits one reserved run, assigns monotonic leases, owns newest-first idempotent cleanup actions, closes resources registered after stop immediately, serializes short provider callbacks with stop, and prevents an old finish from clearing a replacement. `LanServer` now gives every start its own coroutine scope/client state and tracks the bound socket, NSD registration and accepted sockets. Registration and endpoint/error/connection callbacks are current-run guarded; listener failure clears the displayed port; stop invalidates callbacks before closing resources. `BleManager` now creates GATT and advertising callbacks/state per run and tracks server, advertiser and pipe cleanup. Old callbacks cannot access a new server, closed pipes are idempotent, and an old pipe cancels a Bluetooth connection only while it remains that run's current pipe. A disconnect-in-progress fence prevents immediate pipe recreation on the connection being cancelled. `ConnectionService` applies provider notices/endpoints synchronously inside that fence and makes the cross-thread port visible. Port 38471, NSD name/type, BLE UUIDs and low-power mode are unchanged. No protocol/crypto bytes, trust schema, permissions, foreground policy, dependencies or user features changed.
+
+Files added/modified:
+
+- Added Android main `core/ListenerLifecycle.kt`.
+- Modified Android `lan/LanServer.kt`, `ble/BleManager.kt` and `ConnectionService.kt` to use per-run ownership/callbacks.
+- Added Android test `ListenerLifecycleTest.kt` with four production-seam regressions using fake cleanup resources.
+- Updated README, this log, stage plan, Android, architecture, connection, security, development, testing, validation report/checklist and roadmap docs.
+
+Tests performed:
+
+| Check | Result |
+| --- | --- |
+| Android Kotlin compile | Pass after correcting one internal nested-type visibility declaration found by the first compile |
+| `./gradlew.bat :app:testDebugUnitTest :app:assembleDebug :app:lintDebug --offline --no-daemon` | BUILD SUCCESSFUL in 1m 23s; 45 tasks, 13 executed/32 up-to-date |
+| Android JVM suite | 34/34 regular tests; one optional interop skip; 0 failures/errors |
+| Shared v1 corpus | All 67 cases still pass in Android (Windows prior pass unchanged) |
+| Debug APK assembly | Pass; APK at `app/build/outputs/apk/debug/app-debug.apk` |
+| Android lint | 0 errors/5 existing warnings: obsolete custom check plus four dependency notices; SDK XML/Gradle warnings remain |
+| `git diff --check` and Markdown local links | Pass after documentation updates; 0 broken local links |
+
+The four new cases cover a resource arriving after stop and closing immediately; stale endpoint suppression; old completion after restart without affecting the current run; duplicate start reservation; and all newest-first cleanups being attempted once when one cleanup throws. The full suite retains ten A1 ownership/collection cases, real secure-session tests and all shared application fixtures.
+
+Known limitations/debt: JVM tests exercise the exact production lifecycle helper but not Android `BluetoothGattServer`, advertising, NSD, Service/UI, permissions or real TCP/radio behavior. A physical device must verify repeated start/stop, stop during bind/register, advertising/unregistration, LAN reachability, and delayed callbacks during rapid same-device BLE reconnect. Platform registration/add-service calls execute inside the short stop fence and are assumed to return; a platform call that hangs can delay stop. Cleanup remains best effort and is not yet emitted to redacted diagnostics. Android pairing approval expiry still does not stop listeners, automatic recovery remains uncoordinated, and foreground/OEM power behavior remains 1C. Durable trust-save/revoke failure, malformed secure control validation, adversarial crypto/key erasure and hardware/performance checks remain. Root distribution APK/ZIP copies were not refreshed. No Windows source changed, so its 1B-W build/31 core/six live/UI smoke checks were not rerun. Optional .NET/Kotlin TCP interop was not rerun; its last dedicated pass is Stage 0.
+
+Recommended next checkpoint: 1C conservative reconnect and lifecycle coordination. Decisions needed now: none. ADR-003 secure-channel direction and ADR-004 future Windows UI remain pending before dependent migrations. Do not claim all of Stage 1 complete.
+
 ## Next concrete resume action
 
-Begin **1B-A2 — Android listener startup/shutdown and stale provider callbacks**, after explaining the bounded scope in chat. Read `lan/LanServer.kt`, `ble/BleManager.kt`, and the service's endpoint/error/start/stop hooks. Address LAN resource initialization racing stop (socket/listener/client/NSD ownership), prevent old listener callbacks/port notices from overwriting a newer lifecycle, and ensure an old BLE pipe/callback cannot cancel a newer connection. Extract only small pure lifecycle seams where tests need controlled startup/stop interleavings; test production paths with fake resources. Preserve bind port 38471, NSD/service UUIDs, low-power BLE settings, foreground policy, permissions, user pairing window, trust and wire format. Keep physical integration requirements explicit. Ask directly in chat if a material policy/security/compatibility change is necessary. Do not repeat the completed session-owner/Windows audit work.
+Begin **1C — conservative reconnect and lifecycle coordination**, after explaining the bounded scope in chat. Audit Android `START_STICKY`, trusted automatic start, pairing-window expiry, provider failure/retry, Bluetooth/network change handling and explicit Forget/destruction; audit Windows reconnect/sample/pairing/exit coordination against the consolidated owner. Define one bounded event-aware retry policy without changing discovery identifiers, route priority, trust, permissions, wire format or foreground policy. Add controlled cancellation/backoff/lifecycle tests before integrating platform events. Keep OEM background and physical sleep/network/radio checks explicit. Ask directly in chat if a background policy, permission, compatibility or product-behavior decision becomes necessary. Do not repeat the completed session/listener ownership work.
 
 Do not repeat Stage 0 or migrate TLS/WinUI based only on the instruction to begin Stage 1. Preserve the Windows UI and Android root build/helper edits. The user authorized the repository snapshot and GitHub push recorded above.

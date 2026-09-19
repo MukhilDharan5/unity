@@ -1,6 +1,6 @@
 # Android implementation and constraints
 
-Status: updated through Stage 1B-A1, 17 September 2026. Sources are in `Unity_Connect_Android/app/src/main/java/com/unity/connect/android/`. See [PROGRESS.md](../PROGRESS.md) for continuation.
+Status: updated through Stage 1B-A2, 19 September 2026. Sources are in `Unity_Connect_Android/app/src/main/java/com/unity/connect/android/`. See [PROGRESS.md](../PROGRESS.md) for continuation.
 
 ## Runtime and UI
 
@@ -10,7 +10,7 @@ The UI provides pairing code comparison, connection status/address, reconnect/fo
 
 `ConnectionService` is non-exported, returns `START_STICKY` and hosts GATT/TCP listeners, secure pairing, public trust preferences, notifications and feature controllers. `PhoneSessionOwner` now reserves each pending/connected route, owns its coroutine job and guarded pipe, and fences session publication/trust persistence by generation. Forget invalidates admission before closing/canceling pending work; destruction also prevents further admission. Parent-scope cancellation closes pipes to interrupt blocking IO. Handshake guard, watchdog and heartbeat are children of the route job. Trusted service starts listen automatically. New pairing accepts approvals for two minutes, but expiry does not itself stop listeners/advertising. There is no boot receiver and no tested guarantee of unattended recovery after OEM process termination.
 
-Stage 1B-A2 remains: listener startup/shutdown resource publication and stale provider callback/endpoint behavior. In particular, LAN initialization can overlap stop before its socket/listener fields are published. Session admission fencing prevents a forgotten handshake from republishing trust, but does not prove listener resources/advertising stopped correctly.
+Stage 1B-A2 adds a shared `ListenerLifecycle` fence beneath both providers. Each LAN start owns its coroutine scope, listener, NSD registration and accepted sockets; a resource created after stop closes immediately, and an old completion cannot end a replacement. Each BLE start owns its GATT/advertising callbacks, server, advertiser, device and pipe. Stale callbacks are ignored, and an old pipe only cancels the connection when it is still that run's current pipe. Endpoint/error/connection delivery is serialized with stop. The bind port, NSD name/type, BLE UUIDs, low-power advertising, permissions, foreground policy, trust and wire bytes are unchanged.
 
 ## Permissions
 

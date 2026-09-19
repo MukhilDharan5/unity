@@ -1,6 +1,6 @@
 # Incremental roadmap
 
-Status: Stage 0, Stage 1A, Stage 1B-W and Stage 1B-A1 complete, 17 September 2026; Stage 1 overall remains in progress. [PROGRESS.md](../PROGRESS.md) and the [small-stage plan](stage-1-plan.md) define the next checkpoint. Existing code already contains parts of pairing, transport, state, UI, media, DND and clipboard, so later phases validate/refine them rather than pretend they are absent.
+Status: Stage 0, Stage 1A, Stage 1B-W, Stage 1B-A1 and Stage 1B-A2 complete through 19 September 2026; Stage 1 overall remains in progress. [PROGRESS.md](../PROGRESS.md) and the [small-stage plan](stage-1-plan.md) define the next checkpoint. Existing code already contains parts of pairing, transport, state, UI, media, DND and clipboard, so later phases validate/refine them rather than pretend they are absent.
 
 ## Stage 0 — Audit (complete)
 
@@ -10,7 +10,7 @@ Objective: inspect structure, dependencies, platform APIs, state, UI, communicat
 
 Objective: make existing foundations coherent and testable. Implement shared positive/negative wire fixtures, validation parity/metadata normalization, a single production lifecycle with fake-frame test seams, bounded event-aware reconnect coordination, a small Android coordinator, explicit capability/permission/enablement state, redacted structured diagnostics and typed settings, and reproducible build helpers/pins.
 
-Stage 1A delivered strict application validation, metadata normalization and 67 shared fixtures. Stage 1B-W consolidated Windows live/core ownership (31 core tests, six live scenarios, UI smoke/build checks). Stage 1B-A1 added Android generation-fenced session/collector ownership (30 regular tests, debug assembly/lint pass). Next: Stage 1B-A2 Android listener startup/shutdown. Later checkpoints remain planned; security/UI decisions and protocol extensions require separate discussion.
+Stage 1A delivered strict application validation, metadata normalization and 67 shared fixtures. Stage 1B-W consolidated Windows live/core ownership (31 core tests, six live scenarios, UI smoke/build checks). Stage 1B-A1 added Android generation-fenced session/collector ownership. Stage 1B-A2 added per-run LAN/BLE resource ownership and stale callback fencing (34 regular tests, debug assembly/lint pass). Next: Stage 1C conservative reconnect and lifecycle coordination. Later checkpoints remain planned; security/UI decisions and protocol extensions require separate discussion.
 
 Defer all new user-facing features, framework migration, privileged APIs, clipboard history, cloud, storage engines and Windows services. Discuss wire additions, storage/permissions and compatibility before changing them. Security channel replacement must be an explicitly approved focused substage with pairing/storage/migration feasibility work; it is not routine cleanup.
 

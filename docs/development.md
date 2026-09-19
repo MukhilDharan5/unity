@@ -1,6 +1,6 @@
 # Development and reproducible verification
 
-Baseline audited and checkpoints 1A/1B-W/1B-A1 completed on 17 September 2026. [PROGRESS.md](../PROGRESS.md) is the resume log. Build artifacts/caches are ignored. Stage 0 preserved the existing uncommitted edits; do not reset them as part of foundation work.
+Baseline audited and checkpoints 1A/1B-W/1B-A1/1B-A2 completed through 19 September 2026. [PROGRESS.md](../PROGRESS.md) is the resume log. Build artifacts/caches are ignored. Stage 0 preserved the existing user edits; do not reset them as part of foundation work.
 
 ## Current prerequisites
 
@@ -41,7 +41,7 @@ Set-Location Unity_Connect_Android
 
 The debug APK is `app/build/outputs/apk/debug/app-debug.apk`. JVM reports are `app/build/test-results/testDebugUnitTest/` and `app/build/reports/tests/testDebugUnitTest/`; lint reports are `app/build/reports/lint-results-debug.*`. Debug assembly uses the standard debug-signing mechanism; no release signing/distribution validation was done. No Android instrumentation test project exists.
 
-Stage 1B-A1 runs 30 regular JVM tests and one optional interop skip. The new owner/collection tests use real secure handshakes with fictional identities/fake pipes, controlled cleanup barriers and a close-interrupted IO latch. No new test dependencies were added. They exercise the production Kotlin helpers, not Android Service/UI/SharedPreferences or actual BLE/LAN listener resources. See [testing.md](testing.md) for exact checkpoint evidence.
+Stage 1B-A2 runs 34 regular JVM tests and one optional interop skip. The owner/collection cases use real secure handshakes with fictional identities/fake pipes, controlled cleanup barriers and a close-interrupted IO latch. Four listener cases exercise the production Kotlin lifecycle seam with fake resources: stop during startup, stale callback suppression, replacement isolation, duplicate start and cleanup continuation after failure. No new test dependencies were added. JVM tests do not instantiate Android Service/UI/SharedPreferences or actual Bluetooth/NSD APIs. See [testing.md](testing.md) for exact checkpoint evidence.
 
 The audit's first offline lint attempt lacked AGP 8.2.2's `lint-gradle:31.2.2`, although app compilation was cached. Resolving tooling online and rerunning unit/lint checks succeeded. Do not change AGP simply to make an old cache work. Gradle still emits SDK XML/deprecation warnings.
 

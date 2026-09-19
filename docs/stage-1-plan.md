@@ -20,9 +20,9 @@ Completed on 17 September 2026: 67 shared fixtures pass on both runtimes, core 2
 
 1B-A1 completed: Android session publication/revocation and collector ownership now use pure Kotlin production helpers. Ten new ownership/collection regressions pass; Android suite 30 regular tests plus one optional skip, debug assembly passes, lint 0 errors/5 existing warnings. Wire/crypto, trust schema, permissions, foreground hosting and Wi-Fi preference are preserved.
 
-1B-A2 next: Android listener startup/shutdown resource ownership and stale provider callbacks/endpoints. Explain bounded scope first; no handshake redesign. Session fencing in A1 does not prove radio/listener resources stopped correctly.
+1B-A2 completed: Android LAN and BLE listeners use a shared generation-fenced lifecycle seam, per-run platform callbacks/resources, immediate cleanup of resources published after stop, and guarded endpoint/error/connection delivery. Four production-seam regressions pass; the full Android suite has 34 regular tests plus one optional skip, debug assembly passes, and lint remains at 0 errors/5 existing warnings. Physical radio/NSD behavior remains a device-test boundary.
 
-1C: event-aware bounded reconnection and lifecycle/power-related behavior, with cancellation and sample/pairing/exit tests.
+1C next: event-aware bounded reconnection and lifecycle/power-related behavior, with cancellation and sample/pairing/exit tests.
 
 1D: local capability/permission/user-enablement state. A new negotiation wire contract needs an explicit architectural decision first.
 

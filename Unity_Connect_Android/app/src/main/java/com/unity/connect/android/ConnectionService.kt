@@ -60,7 +60,7 @@ class ConnectionService : Service() {
     private val owner = PhoneSessionOwner(scope) { scope.launch { onSessionsChanged() } }
     private var consent: CompletableDeferred<Boolean>? = null
     private var pairingUntil = 0L
-    private var port = 0
+    @Volatile private var port = 0
     private lateinit var collection: PhoneStateCollection
     private val latest get() = collection.latest
 
@@ -75,10 +75,10 @@ class ConnectionService : Service() {
             clipboardSyncEnabled = clipboard.enabled)
         dnd.state.onEach { value -> state.update { it.copy(canControlCompanionDnd = value?.canControlCompanionRule == true,
             companionDndActive = value?.companionRuleActive == true) } }.launchIn(scope)
-        fun notice(text: String) { scope.launch { state.update { it.copy(featureNotice = text) } } }
+        fun notice(text: String) { state.update { it.copy(featureNotice = text) } }
         ble = BleManager(this, { pipe -> owner.accept("ble", pipe, ::accept) }, ::notice)
         lan = LanServer(this, { pipe -> owner.accept("wifi", pipe, ::accept) },
-            { value -> scope.launch { port = value; refreshAddress() } }, ::notice)
+            { value -> port = value; refreshAddress() }, ::notice)
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         getSystemService(NotificationManager::class.java).createNotificationChannel(

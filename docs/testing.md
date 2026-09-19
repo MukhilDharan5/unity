@@ -1,6 +1,14 @@
 # Testing — checkpoint evidence and remaining coverage
 
-Updated: 17 September 2026, through Stage 1B-A1. Results include pre-existing uncommitted changes. Historical validation reports are not evidence of current hardware readiness. [PROGRESS.md](../PROGRESS.md) records exact continuation scope.
+Updated: 19 September 2026, through Stage 1B-A2. Historical validation reports are not evidence of current hardware readiness. [PROGRESS.md](../PROGRESS.md) records exact continuation scope.
+
+## Stage 1B-A2 verification
+
+Android combined `:app:testDebugUnitTest :app:assembleDebug :app:lintDebug --offline --no-daemon` passes: **34 regular tests**, one optional interop skip, zero failures/errors; debug APK assembly passes; lint has 0 errors/5 existing warnings. Gradle reported BUILD SUCCESSFUL in 1m 23s, 45 tasks (13 executed/32 up-to-date). The APK is at `app/build/outputs/apk/debug/app-debug.apk`. SDK XML and Gradle deprecation warnings remain.
+
+Four new `ListenerLifecycleTest` cases exercise the production seam used by `LanServer` and `BleManager`: a listener/resource published after stop closes immediately; stale callbacks cannot publish an endpoint; old completion cannot retire or overwrite a newer run; duplicate starts are rejected; newest-first cleanup attempts every resource once even if one close fails. The production adapters now create callbacks and mutable platform state per run. LAN tracks scope/socket/NSD/client resources; BLE tracks GATT/advertising/pipe resources, and stale pipes cannot cancel a newer run's current pipe.
+
+These JVM cases use fake cleanup resources. They do not instantiate `BluetoothGattServer`, `BluetoothLeAdvertiser`, Android NSD, real sockets through the Service, permissions, OEM radio stacks or Android process lifecycle. A physical Android device is still required to prove advertising/unregistration, stop-during-bind behavior on the target OS, repeated same-device BLE reconnect callbacks, LAN reachability and power/background behavior. No Windows, protocol, crypto, trust, permission or feature source changed, so earlier Windows/fixture/secure-session evidence was not rerun.
 
 ## Stage 1B-A1 verification
 
