@@ -89,7 +89,7 @@ internal class PhoneSessionOwner(
     suspend fun sendActive(frame: ByteArray): Boolean {
         val target = synchronized(lock) { activeLease() } ?: return false
         return try {
-            withTimeout(10000) {
+            withTimeout(ConnectionPolicy.sendTimeoutMs) {
                 val session = synchronized(lock) {
                     check(current(target)) { "Route ended" }
                     target.session!!

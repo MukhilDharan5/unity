@@ -41,7 +41,7 @@ public static class ConnectionFactories
         try
         {
             progress?.Invoke("Looking for your phone over Bluetooth…"); watcher.Start();
-            var address = await found.Task.WaitAsync(TimeSpan.FromSeconds(20), token);
+            var address = await found.Task.WaitAsync(ConnectionPolicy.BleDiscoveryTimeout, token);
             watcher.Stop(); progress?.Invoke("Opening a secure Bluetooth connection…");
             var device = await BluetoothLEDevice.FromBluetoothAddressAsync(address).AsTask(token)
                 ?? throw new IOException("The phone stopped advertising.");

@@ -74,7 +74,7 @@ public sealed class BleReassembler
             if (_active) throw new IOException("Overlapping BLE frame.");
             _buffer.SetLength(0); _sequence = 0; _active = true; _started = Environment.TickCount64;
         }
-        if (!_active || Environment.TickCount64 - _started > 15000 || (header & 63) != _sequence ||
+        if (!_active || Environment.TickCount64 - _started > ConnectionPolicy.BleFragmentTimeoutMilliseconds || (header & 63) != _sequence ||
             _buffer.Length + part.Length - 1 > TcpFrameConnection.MaxWireBytes)
         { _active = false; throw new IOException("Invalid BLE fragment sequence."); }
         _buffer.Write(part[1..]); _sequence = (_sequence + 1) & 63;

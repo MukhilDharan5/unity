@@ -3,6 +3,7 @@ package com.unity.connect.android.lan
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import com.unity.connect.android.core.ConnectionPolicy
 import com.unity.connect.android.core.FramePipe
 import com.unity.connect.android.core.ListenerLifecycle
 import com.unity.connect.android.core.SecureSession
@@ -19,7 +20,7 @@ class SocketFramePipe(private val socket: Socket) : FramePipe {
     private val input = DataInputStream(socket.getInputStream())
     private val output = DataOutputStream(socket.getOutputStream())
     private val writes = Mutex()
-    init { socket.tcpNoDelay = true; socket.keepAlive = true; socket.soTimeout = 120000 }
+    init { socket.tcpNoDelay = true; socket.keepAlive = true; socket.soTimeout = ConnectionPolicy.socketReadTimeoutMs }
     override suspend fun read(): ByteArray = withContext(Dispatchers.IO) {
         val length = input.readInt()
         require(length in 1..SecureSession.MAX_WIRE_BYTES) { "Invalid packet size" }
@@ -44,8 +45,8 @@ class LanServer(private val context: Context,
         var client: Socket? = null
     }
 
-    fun start() {
-        val lease = lifecycle.begin() ?: return
+    fun start(): Boolean {
+        val lease = lifecycle.begin() ?: return false
         val run = Run(lease, CoroutineScope(Dispatchers.IO + SupervisorJob()))
         check(lifecycle.track(lease) { run.scope.cancel() })
         run.scope.launch {
@@ -58,6 +59,7 @@ class LanServer(private val context: Context,
                 }
             } finally { lifecycle.finish(lease) }
         }
+        return true
     }
 
     private fun serve(run: Run) {

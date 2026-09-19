@@ -6,7 +6,7 @@ Baseline audited and checkpoints 1A/1B-W/1B-A1/1B-A2 completed through 19 Septem
 
 Windows: .NET SDK 10 (audit used 10.0.401), Windows desktop runtime/targeting support, Microsoft Windows SDK .NET reference pack 10.0.26100.57. `Directory.Build.props` enables nullable, deterministic builds and warnings as errors. There is no `global.json` SDK pin or CI configuration.
 
-Android: JDK 17, SDK platform 34, accepted SDK licenses, Gradle wrapper 8.10.2, AGP 8.2.2, Kotlin 1.9.20 and compatible cached/downloaded AndroidX/Compose dependencies. Local SDK configuration may use ignored `local.properties` or `ANDROID_HOME`. `build_app.bat` currently hard-codes the original user's SDK/JDK/workspace paths; portable helpers are proposed work, not yet fixed.
+Android: JDK 17, SDK platform 34, accepted SDK licenses, Gradle wrapper 8.10.2, AGP 8.2.2, Kotlin 1.9.20 and compatible cached/downloaded AndroidX/Compose dependencies. Local SDK configuration may use ignored `local.properties` or `ANDROID_HOME`. `build_app.bat` resolves its own project directory, respects configured SDK/JDK variables, detects common local installs and forwards optional Gradle arguments.
 
 ## Existing Windows workflow
 

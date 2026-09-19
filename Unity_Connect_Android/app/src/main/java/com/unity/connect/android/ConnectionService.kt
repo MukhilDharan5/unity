@@ -1,12 +1,22 @@
 package com.unity.connect.android
 
+import android.Manifest
 import android.app.*
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.ConnectivityManager
+import android.net.LinkProperties
+import android.net.Network
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.PermissionChecker
+import androidx.core.content.ContextCompat
 import com.unity.connect.android.ble.BleManager
 import com.unity.connect.android.clipboard.ClipboardBridge
 import com.unity.connect.android.core.*
@@ -20,6 +30,14 @@ import java.net.Inet4Address
 import java.net.NetworkInterface
 
 enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED }
+data class AccessState(
+    val nearbyDevices: Boolean = false,
+    val bluetoothEnabled: Boolean = false,
+    val notifications: Boolean = false,
+    val phoneState: Boolean = false,
+    val mediaSessions: Boolean = false,
+    val dndPolicy: Boolean = false
+)
 data class UiState(
     val isPaired: Boolean = false,
     val connectionState: ConnectionState = ConnectionState.DISCONNECTED,
@@ -30,7 +48,8 @@ data class UiState(
     val clipboardSyncEnabled: Boolean = false,
     val featureNotice: String? = null,
     val wifiAddress: String? = null,
-    val awaitingOtherDevice: Boolean = false
+    val awaitingOtherDevice: Boolean = false,
+    val access: AccessState = AccessState()
 )
 
 class ConnectionService : Service() {
@@ -38,7 +57,7 @@ class ConnectionService : Service() {
         private val state = MutableStateFlow(UiState())
         val serviceState: StateFlow<UiState> = state.asStateFlow()
         private var instance: ConnectionService? = null
-        fun startPairing() { instance?.startTransports() }
+        fun startPairing() { instance?.startTransports(forceRestart = true) }
         fun acceptSasCode() { instance?.consent?.complete(true) }
         fun rejectPairing() { instance?.consent?.complete(false) }
         fun forgetDevice() { instance?.forget() }
@@ -47,7 +66,10 @@ class ConnectionService : Service() {
         } }
         fun sendCurrentClipboard() { instance?.sendClipboard() }
         fun setCompanionDndActive(active: Boolean) { instance?.dnd?.setCompanionRuleActive(active) }
-        fun refreshDndState() { instance?.apply { dnd.refresh(); refreshAddress(); restartCollector() } }
+        fun refreshDndState() { instance?.apply {
+            dnd.refresh(); refreshAccessState(); refreshAddress(); restartCollector()
+            if (listenersWanted()) { ble.start(); lan.start() }
+        } }
     }
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
     private lateinit var ble: BleManager
@@ -63,6 +85,40 @@ class ConnectionService : Service() {
     @Volatile private var port = 0
     private lateinit var collection: PhoneStateCollection
     private val latest get() = collection.latest
+    private var pairingExpiry: Job? = null
+    private var bleRetry: Job? = null
+    private var lanRetry: Job? = null
+    private var bleRetryAttempt = 0
+    private var lanRetryAttempt = 0
+    @Volatile private var bleEpoch = 0L
+    @Volatile private var lanEpoch = 0L
+    private var networkCallbackRegistered = false
+    private var bluetoothReceiverRegistered = false
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) = networkChanged()
+        override fun onLost(network: Network) = networkChanged()
+        override fun onLinkPropertiesChanged(network: Network, properties: LinkProperties) = networkChanged()
+    }
+    private val bluetoothReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != BluetoothAdapter.ACTION_STATE_CHANGED) return
+            val enabled = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR) == BluetoothAdapter.STATE_ON
+            scope.launch {
+                refreshAccessState()
+                if (enabled && listenersWanted()) {
+                    bleRetry?.cancel(); bleRetry = null
+                    bleRetryAttempt = 0
+                    bleEpoch++
+                    ble.stop()
+                    ble.start()
+                } else if (!enabled) {
+                    bleEpoch++
+                    bleRetry?.cancel(); bleRetry = null
+                    ble.stop()
+                }
+            }
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -72,13 +128,15 @@ class ConnectionService : Service() {
         collector = StateCollector(this, dnd)
         collection = PhoneStateCollection(scope, owner, collector.phoneState)
         state.value = UiState(isPaired = prefs.contains("identity"), pairedPcName = prefs.getString("name", null),
-            clipboardSyncEnabled = clipboard.enabled)
+            clipboardSyncEnabled = clipboard.enabled, access = readAccessState())
         dnd.state.onEach { value -> state.update { it.copy(canControlCompanionDnd = value?.canControlCompanionRule == true,
             companionDndActive = value?.companionRuleActive == true) } }.launchIn(scope)
-        fun notice(text: String) { state.update { it.copy(featureNotice = text) } }
-        ble = BleManager(this, { pipe -> owner.accept("ble", pipe, ::accept) }, ::notice)
+        ble = BleManager(this, { pipe -> owner.accept("ble", pipe, ::accept) },
+            { text -> listenerError("ble", bleEpoch, text) })
         lan = LanServer(this, { pipe -> owner.accept("wifi", pipe, ::accept) },
-            { value -> port = value; refreshAddress() }, ::notice)
+            { value -> port = value; refreshAddress() },
+            { text -> listenerError("wifi", lanEpoch, text) })
+        registerRuntimeSignals()
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         getSystemService(NotificationManager::class.java).createNotificationChannel(
@@ -87,12 +145,118 @@ class ConnectionService : Service() {
         if (prefs.contains("identity")) startTransports()
         return START_STICKY
     }
-    private fun startTransports() {
-        if (!prefs.contains("identity")) pairingUntil = android.os.SystemClock.elapsedRealtime() + 120000
+    private fun startTransports(forceRestart: Boolean = false) {
+        if (forceRestart) {
+            cancelListenerRetries(resetAttempts = true)
+            bleEpoch++; lanEpoch++
+            ble.stop(); lan.stop(); port = 0
+        }
+        if (!prefs.contains("identity")) {
+            pairingUntil = android.os.SystemClock.elapsedRealtime() + ConnectionPolicy.pairingWindowMs
+            schedulePairingExpiry()
+        }
         owner.enable()
         ble.start(); lan.start(); refreshAddress()
         state.update { it.copy(connectionState = if (!owner.hasSessions) ConnectionState.CONNECTING else ConnectionState.CONNECTED,
             featureNotice = if (!it.isPaired) "Open Connect phone on your laptop. Pairing is available for two minutes." else null) }
+    }
+    private fun listenersWanted(): Boolean = scope.isActive &&
+        (prefs.contains("identity") || android.os.SystemClock.elapsedRealtime() <= pairingUntil)
+
+    private fun schedulePairingExpiry() {
+        pairingExpiry?.cancel()
+        val deadline = pairingUntil
+        pairingExpiry = scope.launch {
+            delay((deadline - android.os.SystemClock.elapsedRealtime()).coerceAtLeast(0))
+            if (prefs.contains("identity") || pairingUntil != deadline) return@launch
+            pairingUntil = 0
+            consent?.complete(false); consent = null
+            owner.revoke()
+            stopListeners()
+            stopCollector()
+            state.update { it.copy(connectionState = ConnectionState.DISCONNECTED, sasCode = null,
+                awaitingOtherDevice = false, wifiAddress = null,
+                featureNotice = "Pairing timed out. Tap Start pairing when your laptop is ready.") }
+            notifyState()
+        }
+    }
+
+    private fun listenerError(kind: String, epoch: Long, text: String) {
+        scope.launch {
+            val current = if (kind == "ble") bleEpoch else lanEpoch
+            if (epoch != current || !listenersWanted()) return@launch
+            state.update { it.copy(featureNotice = text) }
+            scheduleListenerRetry(kind, epoch)
+        }
+    }
+
+    private fun scheduleListenerRetry(kind: String, epoch: Long) {
+        val pauses = ConnectionPolicy.listenerRetryMs
+        if (kind == "ble") {
+            bleRetry?.cancel()
+            val wait = pauses[minOf(bleRetryAttempt++, pauses.lastIndex)]
+            bleRetry = scope.launch {
+                delay(wait)
+                if (epoch != bleEpoch || !listenersWanted()) return@launch
+                bleRetry = null; bleEpoch++
+                ble.stop(); ble.start()
+            }
+        } else {
+            lanRetry?.cancel()
+            val wait = pauses[minOf(lanRetryAttempt++, pauses.lastIndex)]
+            lanRetry = scope.launch {
+                delay(wait)
+                if (epoch != lanEpoch || !listenersWanted()) return@launch
+                lanRetry = null; lanEpoch++
+                lan.stop(); lan.start()
+            }
+        }
+    }
+
+    private fun cancelListenerRetries(resetAttempts: Boolean) {
+        bleRetry?.cancel(); bleRetry = null
+        lanRetry?.cancel(); lanRetry = null
+        if (resetAttempts) { bleRetryAttempt = 0; lanRetryAttempt = 0 }
+    }
+
+    private fun stopListeners() {
+        cancelListenerRetries(resetAttempts = true)
+        bleEpoch++; lanEpoch++
+        ble.stop(); lan.stop(); port = 0
+    }
+
+    private fun networkChanged() {
+        scope.launch {
+            refreshAddress()
+            if (listenersWanted()) {
+                if (lanRetry != null) {
+                    lanRetry?.cancel(); lanRetry = null; lanRetryAttempt = 0
+                    lanEpoch++
+                    lan.stop()
+                }
+                lan.start()
+            }
+        }
+    }
+
+    private fun registerRuntimeSignals() {
+        networkCallbackRegistered = runCatching {
+            getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(networkCallback)
+            true
+        }.getOrDefault(false)
+        bluetoothReceiverRegistered = runCatching {
+            ContextCompat.registerReceiver(this, bluetoothReceiver,
+                IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED), ContextCompat.RECEIVER_EXPORTED)
+            true
+        }.getOrDefault(false)
+    }
+
+    private fun unregisterRuntimeSignals() {
+        if (networkCallbackRegistered) runCatching {
+            getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(networkCallback)
+        }
+        if (bluetoothReceiverRegistered) runCatching { unregisterReceiver(bluetoothReceiver) }
+        networkCallbackRegistered = false; bluetoothReceiverRegistered = false
     }
     private fun refreshAddress() {
         val network = getSystemService(ConnectivityManager::class.java)
@@ -111,6 +275,23 @@ class ConnectionService : Service() {
         val address = wifiAddress ?: hotspotAddress
         state.update { it.copy(wifiAddress = if (address != null && port > 0) "$address:$port" else null) }
     }
+    private fun refreshAccessState() = state.update { it.copy(access = readAccessState()) }
+    private fun readAccessState(): AccessState {
+        fun granted(permission: String) = PermissionChecker.checkSelfPermission(this, permission) ==
+            PermissionChecker.PERMISSION_GRANTED
+        return AccessState(
+            nearbyDevices = granted(Manifest.permission.BLUETOOTH_CONNECT) &&
+                granted(Manifest.permission.BLUETOOTH_ADVERTISE),
+            bluetoothEnabled = runCatching {
+                getSystemService(android.bluetooth.BluetoothManager::class.java).adapter?.isEnabled == true
+            }.getOrDefault(false),
+            notifications = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                granted(Manifest.permission.POST_NOTIFICATIONS),
+            phoneState = granted(Manifest.permission.READ_PHONE_STATE),
+            mediaSessions = NotificationManagerCompat.getEnabledListenerPackages(this).contains(packageName),
+            dndPolicy = getSystemService(NotificationManager::class.java).isNotificationPolicyAccessGranted
+        )
+    }
     @SuppressLint("ApplySharedPref") // Trust must reach disk before the UI exposes the paired session.
     private suspend fun accept(lease: PhoneSessionOwner.Lease) {
         val pipe = lease.pipe
@@ -120,9 +301,9 @@ class ConnectionService : Service() {
         var heartbeat: Job? = null
         try {
             // Closing the socket also interrupts blocking JVM reads when the coroutine times out.
-            val handshakeGuard = sessionScope.launch { delay(120000); pipe.close() }
+            val handshakeGuard = sessionScope.launch { delay(ConnectionPolicy.handshakeTimeoutMs); pipe.close() }
             try {
-                secure = withTimeout(120000) {
+                secure = withTimeout(ConnectionPolicy.handshakeTimeoutMs) {
                     SecureSession.connect(pipe, identity, Build.MODEL) { peer ->
                         currentCoroutineContext().ensureActive()
                         check(owner.isCurrent(lease))
@@ -150,6 +331,8 @@ class ConnectionService : Service() {
                 check(prefs.getString("identity", session.peer.publicKey) == session.peer.publicKey)
                 prefs.edit().putString("identity", session.peer.publicKey).putString("name", session.peer.name).commit()
             }) return
+            pairingExpiry?.cancel(); pairingExpiry = null; pairingUntil = 0
+            cancelListenerRetries(resetAttempts = true)
             state.update { it.copy(isPaired = true, connectionState = ConnectionState.CONNECTED, sasCode = null,
                 pairedPcName = session.peer.name, awaitingOtherDevice = false, featureNotice = null) }
             notifyState()
@@ -157,10 +340,15 @@ class ConnectionService : Service() {
             latest?.let { if (owner.isActive(lease)) session.send(MessageCodec.encodePhoneSnapshot(it).toByteArray(Charsets.UTF_8)) }
             var lastReceived = android.os.SystemClock.elapsedRealtime()
             watchdog = sessionScope.launch {
-                while (isActive) { delay(5000); if (android.os.SystemClock.elapsedRealtime() - lastReceived > 35000) { pipe.close(); break } }
+                while (isActive) {
+                    delay(ConnectionPolicy.watchdogPollMs)
+                    if (android.os.SystemClock.elapsedRealtime() - lastReceived > ConnectionPolicy.peerTimeoutMs) {
+                        pipe.close(); break
+                    }
+                }
             }
             heartbeat = sessionScope.launch {
-                try { while (isActive) { delay(10000); session.send(SecureSession.control("ping")) } }
+                try { while (isActive) { delay(ConnectionPolicy.heartbeatMs); session.send(SecureSession.control("ping")) } }
                 catch (_: Exception) { pipe.close() }
             }
             while (currentCoroutineContext().isActive && owner.isCurrent(lease)) {
@@ -224,9 +412,10 @@ class ConnectionService : Service() {
     private fun forget() {
         owner.revoke()
         pairingUntil = 0; consent?.complete(false); consent = null
+        pairingExpiry?.cancel(); pairingExpiry = null
         prefs.edit().clear().commit()
         clipboard.updateEnabled(false)
-        ble.stop(); lan.stop(); port = 0
+        stopListeners()
         stopCollector()
         state.value = UiState()
     }
@@ -242,8 +431,10 @@ class ConnectionService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onDestroy() {
         instance = null
+        unregisterRuntimeSignals()
         owner.close(); stopCollector()
-        ble.stop(); lan.stop(); scope.cancel(); dnd.close()
+        pairingExpiry?.cancel(); pairingExpiry = null
+        stopListeners(); scope.cancel(); dnd.close()
         state.update { it.copy(connectionState = ConnectionState.DISCONNECTED, sasCode = null, awaitingOtherDevice = false) }
         super.onDestroy()
     }

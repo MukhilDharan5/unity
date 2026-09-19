@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -29,8 +30,11 @@ public partial class App : Application
     private CancellationTokenSource? _reconnect;
     private Task? _reconnectTask;
     private readonly IPhoneMessageCodec _codec = new JsonPhoneMessageCodec();
+    private readonly SemaphoreSlim _reconnectWake = new(0, 1);
     private bool _ownsMutex;
     private bool _exiting;
+    private bool _suppressReconnect;
+    private bool _networkSubscribed;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -57,6 +61,8 @@ public partial class App : Application
         _viewModel.PropertyChanged += (_, _) => { _tray?.SetStatus(_viewModel.Status); _tray?.SetDemo(_viewModel.IsDemo); };
         _showWait = ThreadPool.RegisterWaitForSingleObject(_showSignal,
             (_, _) => Dispatcher.BeginInvoke(ShowDesktop), null, Timeout.Infinite, false);
+        NetworkChange.NetworkAddressChanged += OnNetworkAddressChanged;
+        _networkSubscribed = true;
 
         if (_connectionStore.Load() is not null) StartReconnectLoop();
         if (e.Args.Contains("--demo", StringComparer.OrdinalIgnoreCase)) await SetDemoAsync(true);
@@ -71,7 +77,13 @@ public partial class App : Application
     }
     private void OnPhoneStateChanged(PhoneCompanion.Core.Models.PhoneState state)
     {
-        if (_exiting || state.Connection != PhoneCompanion.Core.Models.ConnectionState.Disconnected || state.IsDemo) return;
+        if (_exiting || _suppressReconnect || state.Connection != PhoneCompanion.Core.Models.ConnectionState.Disconnected || state.IsDemo) return;
+        Dispatcher.BeginInvoke(StartReconnectLoop);
+    }
+    private void OnNetworkAddressChanged(object? sender, EventArgs e)
+    {
+        if (_exiting) return;
+        try { _reconnectWake.Release(); } catch (SemaphoreFullException) { }
         Dispatcher.BeginInvoke(StartReconnectLoop);
     }
     private void StartReconnectLoop()
@@ -79,6 +91,7 @@ public partial class App : Application
         if (_exiting || _manager is null || _pairing is not null || _connectionStore.Load() is null ||
             _reconnectTask is { IsCompleted: false }) return;
         _reconnect?.Dispose(); _reconnect = new CancellationTokenSource();
+        while (_reconnectWake.Wait(0)) { }
         _reconnectTask = ReconnectLoopAsync(_reconnect.Token);
     }
     private void StopReconnectLoop()
@@ -87,7 +100,6 @@ public partial class App : Application
     }
     private async Task ReconnectLoopAsync(CancellationToken token)
     {
-        var pauses = new[] { 2, 5, 10, 20, 30 };
         var attempt = 0;
         while (!token.IsCancellationRequested && !_exiting && _manager is not null &&
                _manager.Current.Connection != PhoneCompanion.Core.Models.ConnectionState.Connected)
@@ -95,14 +107,16 @@ public partial class App : Application
             var trusted = _connectionStore.Load();
             if (trusted is null) return;
             if (trusted.WifiEndpoint is { } endpoint && await TryTrustedRouteAsync(
-                PhoneCompanion.Core.Models.TransportKind.Wifi, value => ConnectionFactories.OpenWifiAsync(endpoint, value), trusted, 8, token)) return;
+                PhoneCompanion.Core.Models.TransportKind.Wifi, value => ConnectionFactories.OpenWifiAsync(endpoint, value),
+                trusted, ConnectionPolicy.WifiConnectTimeout, token)) return;
             if (await TryTrustedRouteAsync(PhoneCompanion.Core.Models.TransportKind.Ble,
-                value => ConnectionFactories.OpenBleAsync(null, value), trusted, 15, token)) return;
-            await Task.Delay(TimeSpan.FromSeconds(pauses[Math.Min(attempt++, pauses.Length - 1)]), token);
+                value => ConnectionFactories.OpenBleAsync(null, value), trusted, ConnectionPolicy.BleConnectTimeout, token)) return;
+            await _reconnectWake.WaitAsync(ConnectionPolicy.ReconnectDelay(attempt++), token);
         }
     }
     private async Task<bool> TryTrustedRouteAsync(PhoneCompanion.Core.Models.TransportKind kind,
-        Func<CancellationToken, Task<IFrameConnection>> open, TrustedDevice trusted, int seconds, CancellationToken lifetime)
+        Func<CancellationToken, Task<IFrameConnection>> open, TrustedDevice trusted, TimeSpan timeoutValue,
+        CancellationToken lifetime)
     {
         if (_manager is null) return false;
         try
@@ -110,7 +124,7 @@ public partial class App : Application
             var transport = new LivePhoneTransport(kind, open, _connectionStore.OpenIdentity(), trusted.Fingerprint,
                 (_, _) => Task.FromResult(false));
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime);
-            timeout.CancelAfter(TimeSpan.FromSeconds(seconds));
+            timeout.CancelAfter(timeoutValue);
             return await _manager.SetTransportAsync(transport, timeout.Token);
         }
         catch (OperationCanceledException) when (!lifetime.IsCancellationRequested) { return false; }
@@ -134,15 +148,22 @@ public partial class App : Application
     private async Task SetDemoAsync(bool enabled)
     {
         if (_manager is null || _tray is null || _exiting) return;
+        _suppressReconnect = true;
         StopReconnectLoop(); _tray.SetBusy(true);
         try { await _manager.SetTransportAsync(enabled ? new MockPhoneTransport(_codec) : null); }
-        finally { _tray?.SetBusy(false); }
+        finally
+        {
+            _suppressReconnect = false;
+            _tray?.SetBusy(false);
+            if (!enabled) StartReconnectLoop();
+        }
     }
     private async Task ExitAsync()
     {
         if (_exiting) return;
         _exiting = true;
         StopReconnectLoop();
+        UnsubscribeNetwork();
         _showWait?.Unregister(null);
         _tray?.Dispose(); _tray = null;
         _theme?.Dispose(); _theme = null;
@@ -156,6 +177,7 @@ public partial class App : Application
     }
     protected override void OnExit(ExitEventArgs e)
     {
+        UnsubscribeNetwork();
         _showWait?.Unregister(null);
         _tray?.Dispose();
         _theme?.Dispose();
@@ -167,5 +189,11 @@ public partial class App : Application
         if (_ownsMutex) _singleInstance?.ReleaseMutex();
         _singleInstance?.Dispose();
         base.OnExit(e);
+    }
+    private void UnsubscribeNetwork()
+    {
+        if (!_networkSubscribed) return;
+        NetworkChange.NetworkAddressChanged -= OnNetworkAddressChanged;
+        _networkSubscribed = false;
     }
 }

@@ -7,6 +7,7 @@ import android.content.Context
 import android.os.Build
 import android.os.ParcelUuid
 import com.unity.connect.android.core.FramePipe
+import com.unity.connect.android.core.ConnectionPolicy
 import com.unity.connect.android.core.ListenerLifecycle
 import com.unity.connect.android.core.SecureSession
 import kotlinx.coroutines.CompletableDeferred
@@ -116,14 +117,14 @@ class BleManager(context: Context, private val connected: (FramePipe) -> Unit, p
         }
     }
 
-    fun start() {
-        val lease = lifecycle.begin() ?: return
+    fun start(): Boolean {
+        val lease = lifecycle.begin() ?: return false
         val run = Run(lease)
         try {
             check(manager.adapter?.isEnabled == true)
             val opened = manager.openGattServer(appContext, run.callbacks) ?: throw IOException("BLE unavailable")
             run.server = opened
-            if (!lifecycle.track(lease) { runCatching { opened.close() } }) return
+            if (!lifecycle.track(lease) { runCatching { opened.close() } }) return false
 
             val service = BluetoothGattService(serviceId, BluetoothGattService.SERVICE_TYPE_PRIMARY)
             service.addCharacteristic(BluetoothGattCharacteristic(rxId,
@@ -133,11 +134,12 @@ class BleManager(context: Context, private val connected: (FramePipe) -> Unit, p
             tx.addDescriptor(BluetoothGattDescriptor(cccdId,
                 BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE))
             service.addCharacteristic(tx)
-            if (!lifecycle.perform(lease) { check(opened.addService(service)) }) return
+            if (!lifecycle.perform(lease) { check(opened.addService(service)) }) return false
         } catch (_: Exception) {
             lifecycle.perform(lease) { error("Bluetooth is unavailable. Wi-Fi pairing is still available.") }
             lifecycle.finish(lease)
         }
+        return lifecycle.isCurrent(lease)
     }
 
     private fun startAdvertising(run: Run) {
@@ -183,7 +185,7 @@ class BleManager(context: Context, private val connected: (FramePipe) -> Unit, p
                 require(!active); buffer.reset(); active = true; sequence = 0
                 started = android.os.SystemClock.elapsedRealtime()
             }
-            require(active && android.os.SystemClock.elapsedRealtime() - started <= 15000 &&
+            require(active && android.os.SystemClock.elapsedRealtime() - started <= ConnectionPolicy.bleFragmentTimeoutMs &&
                 (header and 63) == sequence && buffer.size() + part.size - 1 <= SecureSession.MAX_WIRE_BYTES)
             buffer.write(part, 1, part.size - 1); sequence = (sequence + 1) and 63
             if (header and 64 != 0) {
@@ -215,7 +217,7 @@ class BleManager(context: Context, private val connected: (FramePipe) -> Unit, p
                     @Suppress("DEPRECATION")
                     gatt.notifyCharacteristicChanged(remote, tx, false)
                 }
-                check(sent && withTimeout(5000) { ack.await() }) { "Bluetooth send failed" }
+                check(sent && withTimeout(ConnectionPolicy.bleNotificationTimeoutMs) { ack.await() }) { "Bluetooth send failed" }
                 notification = null; offset += count; seq = (seq + 1) and 63
             }
         }

@@ -1,6 +1,6 @@
 # Project progress and resume log
 
-Last updated: 19 September 2026. **Stage 1B-A2 — Android listener lifecycle is complete.** Stage 1A, 1B-W and 1B-A1 are complete; Stage 1 overall remains in progress. Next: 1C reconnect/lifecycle coordination, not started.
+Last updated: 19 September 2026. **Stage 1D and the MVP-essential part of 1E are complete.** Reconnect, explicit Android access state, portable Android builds and typed timing policy are implemented. Detailed diagnostics and broad validation are deferred.
 
 ## Current instructions
 
@@ -8,6 +8,7 @@ Last updated: 19 September 2026. **Stage 1B-A2 — Android listener lifecycle is
 - Work in small stages; report a completed checkpoint before moving to the next one.
 - Ask questions directly in this chat, not through separate question widgets.
 - Keep this log current so another session can resume without repeating the audit.
+- As of 19 September 2026, prioritize MVP implementation and keep validation light. Run minimal compile checks to catch broken code; defer broad tests, lint, hardware checks and detailed validation documentation until the user requests them.
 - Preserve the pre-existing UI/build edits. On 17 September 2026 the user authorized committing and pushing every current non-ignored project change to the configured GitHub repository. Resets and unrelated rewrites remain outside scope.
 
 ## Approved scope and pending decisions
@@ -25,9 +26,9 @@ Security-channel direction (ADR-003) and future Windows UI direction (ADR-004) r
 | 1B-W | Windows live/core session ownership, cleanup and cancellation tests; preserve security protocol | Completed; results below |
 | 1B-A1 | Android route reservations, session publication/revocation, collector cleanup and cancellation tests | Completed; results below |
 | 1B-A2 | Android listener startup/shutdown and remaining provider lifecycle verification | Completed; results below |
-| 1C | Conservative reconnect coordination and lifecycle tests | Planned |
-| 1D | Local capability/permission/enablement model; negotiate any wire addition separately | Planned |
-| 1E | Redacted structured diagnostics, typed settings, reproducible helpers/toolchain pins | Planned |
+| 1C | Conservative reconnect coordination and lifecycle behavior | Completed; minimal compile checks only |
+| 1D | Local capability/permission/enablement model; negotiate any wire addition separately | Completed locally; no wire change |
+| 1E | Redacted structured diagnostics, typed settings, reproducible helpers/toolchain pins | MVP essentials complete; diagnostics deferred |
 
 The order may change when evidence warrants it. Do not claim the whole foundation complete after one checkpoint.
 
@@ -184,8 +185,20 @@ Known limitations/debt: JVM tests exercise the exact production lifecycle helper
 
 Recommended next checkpoint: 1C conservative reconnect and lifecycle coordination. Decisions needed now: none. ADR-003 secure-channel direction and ADR-004 future Windows UI remain pending before dependent migrations. Do not claim all of Stage 1 complete.
 
+### 19 September 2026 — Stage 1C completed (MVP pace)
+
+Windows reconnect now wakes on network-address changes, suppresses reconnect while switching sample mode, resumes after leaving sample mode, and unsubscribes network events during exit. Android now expires unpaired listening after two minutes, cancels approval and resources on expiry, retries failed BLE/LAN listeners with bounded 2/5/10/30-second backoff, responds to Bluetooth on/off and network changes, and retries listeners after runtime permission changes or activity resume. Forget/destruction cancel expiry/retry work; successful trust cancels pending retries. Existing route priority, trust, wire format, permissions and foreground policy remain unchanged.
+
+Minimal checks only per the user's MVP direction: Android `:app:compileDebugKotlin` passed; Windows Release solution build passed with 0 warnings/errors. Full tests, lint, packaging, device validation and detailed doc synchronization were intentionally deferred.
+
+### 19 September 2026 — Stage 1D / MVP-essential 1E completed
+
+Android now reports nearby-device permission, Bluetooth enabled state, notification permission, optional phone-state access, media-session access and DND access separately. The Access card shows each state and routes the user to the matching runtime request or settings screen. Permission results and activity resume refresh state and retry eligible listeners. This remains local UI/state and adds no protocol fields or permissions.
+
+Connection timeouts/backoff are centralized in typed policy objects on Android and Windows. `build_app.bat` now uses its own directory, respects existing `JAVA_HOME`/`ANDROID_HOME`, detects common local installs, accepts arbitrary Gradle arguments and contains no user/workspace-specific absolute path. Android Kotlin and Windows Release compile checks pass. Broad tests/lint/package validation and structured diagnostics are deferred under the MVP instruction.
+
 ## Next concrete resume action
 
-Begin **1C — conservative reconnect and lifecycle coordination**, after explaining the bounded scope in chat. Audit Android `START_STICKY`, trusted automatic start, pairing-window expiry, provider failure/retry, Bluetooth/network change handling and explicit Forget/destruction; audit Windows reconnect/sample/pairing/exit coordination against the consolidated owner. Define one bounded event-aware retry policy without changing discovery identifiers, route priority, trust, permissions, wire format or foreground policy. Add controlled cancellation/backoff/lifecycle tests before integrating platform events. Keep OEM background and physical sleep/network/radio checks explicit. Ask directly in chat if a background policy, permission, compatibility or product-behavior decision becomes necessary. Do not repeat the completed session/listener ownership work.
+Continue MVP functionality with automatic LAN discovery on Windows using Android's existing authenticated `_phonecomp._tcp` advertisement, while preserving manual endpoint entry and treating discovery only as a routing hint. Do not change trust or the secure wire. The secure-channel migration decision remains pending and does not block discovery.
 
 Do not repeat Stage 0 or migrate TLS/WinUI based only on the instruction to begin Stage 1. Preserve the Windows UI and Android root build/helper edits. The user authorized the repository snapshot and GitHub push recorded above.

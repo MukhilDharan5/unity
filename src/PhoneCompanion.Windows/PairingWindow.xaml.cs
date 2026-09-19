@@ -35,7 +35,7 @@ public partial class PairingWindow : Window
     private async Task ConnectAsync(TransportKind kind, Func<CancellationToken, Task<IFrameConnection>> open, string? endpoint)
     {
         if (_attempt is not null) return;
-        _attempt = new CancellationTokenSource(TimeSpan.FromMinutes(2)); SetBusy(true);
+        _attempt = new CancellationTokenSource(ConnectionPolicy.PairingTimeout); SetBusy(true);
         var trusted = _store.Load();
         try
         {

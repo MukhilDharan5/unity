@@ -134,7 +134,7 @@ public sealed class SecurePhoneSession : IAuthenticatedPhoneSession
             while (!linked.IsCancellationRequested)
             {
                 using var read = CancellationTokenSource.CreateLinkedTokenSource(linked.Token);
-                read.CancelAfter(TimeSpan.FromSeconds(35));
+                read.CancelAfter(ConnectionPolicy.PeerTimeout);
                 var frame = await ReadRecordAsync(read.Token).ConfigureAwait(false);
                 using var packet = Parse(frame);
                 if (packet.RootElement.GetProperty("version").GetInt32() != 1) throw new IOException("Unsupported message version.");
@@ -153,7 +153,7 @@ public sealed class SecurePhoneSession : IAuthenticatedPhoneSession
     {
         try
         {
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+            using var timer = new PeriodicTimer(ConnectionPolicy.HeartbeatInterval);
             while (await timer.WaitForNextTickAsync(token))
                 await SendFrameAsync(Pack(new { version = 1, type = "ping" }), token);
         }

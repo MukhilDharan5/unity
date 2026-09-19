@@ -22,10 +22,10 @@ Completed on 17 September 2026: 67 shared fixtures pass on both runtimes, core 2
 
 1B-A2 completed: Android LAN and BLE listeners use a shared generation-fenced lifecycle seam, per-run platform callbacks/resources, immediate cleanup of resources published after stop, and guarded endpoint/error/connection delivery. Four production-seam regressions pass; the full Android suite has 34 regular tests plus one optional skip, debug assembly passes, and lint remains at 0 errors/5 existing warnings. Physical radio/NSD behavior remains a device-test boundary.
 
-1C next: event-aware bounded reconnection and lifecycle/power-related behavior, with cancellation and sample/pairing/exit tests.
+1C completed at MVP pace: Windows reconnect wakes on network changes and is suppressed during sample-mode transitions; Android coordinates pairing expiry, listener retry/backoff, Bluetooth/network changes, permission refresh, Forget and destruction. Android Kotlin and Windows Release compile checks pass; broader validation is deferred.
 
-1D: local capability/permission/user-enablement state. A new negotiation wire contract needs an explicit architectural decision first.
+1D completed: Android exposes explicit local permission and user-enablement state with direct actions. No wire fields or permissions were added.
 
-1E: redacted diagnostics, typed policy/settings and reproducible build helpers/pins. Persistence, new dependencies and compatibility changes must be discussed when material.
+1E MVP essentials completed: connection timing is centralized in typed policy objects and the Android build helper is portable. Structured diagnostics and broader toolchain work are deferred until after the functional MVP.
 
 These are bounded checkpoints inside Stage 1, not permission to implement all at once. Keep apps runnable, validate each checkpoint, update PROGRESS.md, report completion/limitations and propose the next checkpoint. Security and Windows UI migrations need their own approved design and stage.

@@ -48,7 +48,7 @@ public sealed class PhoneStateManager(IPhoneMessageCodec codec) : IAsyncDisposab
             {
                 using var connect = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 // First pairing waits for the user to compare and confirm the code on both devices.
-                connect.CancelAfter(TimeSpan.FromMinutes(2));
+                connect.CancelAfter(ConnectionPolicy.PairingTimeout);
                 await transport.StartAsync(connect.Token).ConfigureAwait(false);
                 return transport.State == ConnectionState.Connected;
             }
@@ -119,7 +119,7 @@ public sealed class PhoneStateManager(IPhoneMessageCodec codec) : IAsyncDisposab
             }
             if (transport is null) return CommandResult.Unavailable;
             using var send = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            send.CancelAfter(TimeSpan.FromSeconds(5));
+            send.CancelAfter(ConnectionPolicy.CommandTimeout);
             await transport.SendAsync(codec.Encode(new MediaCommandMessage(command)), send.Token).ConfigureAwait(false);
             // A successful write is not an acknowledgment; wait for an incoming media state.
             return CommandResult.Sent;
@@ -171,7 +171,7 @@ public sealed class PhoneStateManager(IPhoneMessageCodec codec) : IAsyncDisposab
         try
         {
             using var send = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            send.CancelAfter(TimeSpan.FromSeconds(5));
+            send.CancelAfter(ConnectionPolicy.CommandTimeout);
             await transport.SendAsync(codec.Encode(message), send.Token).ConfigureAwait(false);
             // DND and clipboard delivery are also confirmed only by subsequent phone state/protocol behavior.
             return CommandResult.Sent;

@@ -3,7 +3,6 @@ package com.unity.connect.android
 import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -34,15 +33,12 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 class MainActivity : ComponentActivity() {
@@ -91,16 +87,9 @@ fun AppScreen(viewModel: AppViewModel = viewModel()) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
-    var permissionsGranted by remember {
-        mutableStateOf(runtimePermissions.all {
-            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-        })
-    }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { results -> permissionsGranted = runtimePermissions.all {
-        results[it] == true || ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-    } }
+    ) { ConnectionService.refreshDndState() }
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -124,11 +113,8 @@ fun AppScreen(viewModel: AppViewModel = viewModel()) {
             }
         }
 
-        if (!permissionsGranted) {
-            Button(onClick = { permissionLauncher.launch(runtimePermissions.toTypedArray()) }) {
-                Text("Allow device access")
-            }
-        }
+        AccessContent(uiState.access,
+            requestRuntime = { permissionLauncher.launch(runtimePermissions.toTypedArray()) }, context = context)
 
         if (!uiState.isPaired) {
             PairingContent(uiState, viewModel)
@@ -136,7 +122,7 @@ fun AppScreen(viewModel: AppViewModel = viewModel()) {
             if (uiState.connectionState != ConnectionState.CONNECTED) {
                 Button(onClick = viewModel::startPairing) { Text("Reconnect") }
             }
-            CompanionControls(uiState, viewModel, context)
+            CompanionControls(uiState, viewModel)
             Button(
                 onClick = viewModel::forgetDevice,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
@@ -173,7 +159,7 @@ private fun PairingContent(uiState: UiState, viewModel: AppViewModel) {
 }
 
 @Composable
-private fun CompanionControls(uiState: UiState, viewModel: AppViewModel, context: Context) {
+private fun CompanionControls(uiState: UiState, viewModel: AppViewModel) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
@@ -194,11 +180,6 @@ private fun CompanionControls(uiState: UiState, viewModel: AppViewModel, context
                     onCheckedChange = viewModel::setCompanionDndActive,
                     enabled = uiState.canControlCompanionDnd
                 )
-            }
-            if (!uiState.canControlCompanionDnd) {
-                Button(onClick = {
-                    context.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
-                }) { Text("Allow DND access") }
             }
             Text(
                 "Turning this off leaves manual DND and other rules alone.",
@@ -241,7 +222,42 @@ private fun CompanionControls(uiState: UiState, viewModel: AppViewModel, context
     }
 
     Spacer(modifier = Modifier.height(2.dp))
-    Button(onClick = { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }) {
-        Text("Allow media access")
+}
+
+@Composable
+private fun AccessContent(access: AccessState, requestRuntime: () -> Unit, context: Context) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Text("Access", style = MaterialTheme.typography.titleMedium)
+            AccessRow("Nearby devices", access.nearbyDevices, "Needed for Bluetooth")
+            AccessRow("Bluetooth", access.bluetoothEnabled, "Turned off")
+            AccessRow("Notifications", access.notifications, "Needed for connection status")
+            AccessRow("Phone status", access.phoneState, "Optional")
+            AccessRow("Media sessions", access.mediaSessions, "Optional")
+            AccessRow("Do Not Disturb", access.dndPolicy, "Optional")
+            if (!access.nearbyDevices || !access.notifications || !access.phoneState) {
+                Button(onClick = requestRuntime) { Text("Review device permissions") }
+            }
+            if (!access.mediaSessions) {
+                Button(onClick = {
+                    context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                }) { Text("Allow media access") }
+            }
+            if (!access.dndPolicy) {
+                Button(onClick = {
+                    context.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+                }) { Text("Allow DND access") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccessRow(label: String, granted: Boolean, missingLabel: String) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label)
+        Text(if (granted) "Available" else missingLabel,
+            color = if (granted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall)
     }
 }
