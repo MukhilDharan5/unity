@@ -1,6 +1,6 @@
 # Android implementation and constraints
 
-Status: updated through Stage 1B-A2, 19 September 2026. Sources are in `Unity_Connect_Android/app/src/main/java/com/unity/connect/android/`. See [PROGRESS.md](../PROGRESS.md) for continuation.
+Status: updated through the live phone-status checkpoint, 19 September 2026. Sources are in `Unity_Connect_Android/app/src/main/java/com/unity/connect/android/`. See [PROGRESS.md](../PROGRESS.md) for continuation.
 
 ## Runtime and UI
 
@@ -30,9 +30,9 @@ Android connected-device foreground services have specific manifest/runtime prer
 
 ## State/event collection
 
-`StateCollector` uses battery and ringer-mode broadcasts, default-network callbacks, active media-session and media-controller callbacks, plus the DND controller's state flow. `PhoneStateCollection` owns observer replacement and latest state. It cancels after the last route closes/Forget, waits for prior observer cleanup before replacement, and checks collection identity/session generation before emitting snapshots. Rapid restart retains the cleanup chain; an old finally block cannot clear new state. The service sends normalized-category full snapshots on changes, not a 500 ms polling loop.
+`StateCollector` uses battery and ringer-mode broadcasts, default-network and telephony callbacks, active media-session and media-controller callbacks, plus the DND controller's state flow. `PhoneStateCollection` owns observer replacement and latest state. It cancels after the last route closes/Forget, waits for prior observer cleanup before replacement, and checks collection identity/session generation before emitting snapshots. Rapid restart retains the cleanup chain; an old finally block cannot clear new state. The service sends normalized-category full snapshots on changes, not a 500 ms polling loop.
 
-Cellular generation/signal are sampled when default-network callbacks occur. There is no `TelephonyCallback` listener, so radio signal or generation can change without a snapshot. API 31 has a [signal-strength callback](https://developer.android.com/reference/android/telephony/TelephonyCallback.SignalStrengthsListener); integrating it with permission and subscription lifecycle is proposed work.
+When phone-state access is available, `TelephonyCallback` reports data-network generation, 5G display overrides and normalized signal-strength changes. Default-network callbacks independently report whether Wi-Fi or mobile data is active. Missing permission keeps radio details unknown while preserving available connection-route state. Multi-SIM behavior still follows Android's default `TelephonyManager` and needs physical-device validation.
 
 Media selection prefers playing, then paused controllers. `MediaMetadataNormalizer` replaces control characters with spaces, trims blank values to unavailable, and bounds source to 80 and title/artist to 256 UTF-16 code units without cutting a surrogate pair. `StateCollector` applies it before building protocol state. Controller selection compares object references rather than tokens, potentially replacing callbacks unnecessarily. The dispatcher targets the selected controller; actual app action support/session disappearance needs integration tests.
 

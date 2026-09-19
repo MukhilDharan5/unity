@@ -1,6 +1,6 @@
 # Stage 1 — Foundation consolidation in small checkpoints
 
-Authorized to begin on 17 September 2026. [PROGRESS.md](../PROGRESS.md) is the durable current-status and resume log. Ask architectural questions directly in chat. Pending ADR-003/ADR-004 choices do not authorize security/UI migrations and do not block corrective v1 work.
+Authorized to begin on 17 September 2026. [PROGRESS.md](../PROGRESS.md) is the durable current-status and resume log. Ask architectural questions directly in chat. ADR-003 now retains the isolated v1 channel for the MVP; ADR-004 remains pending. Neither decision authorizes a security or UI migration.
 
 ## Stage 1A — Strict v1 interoperability
 
@@ -28,4 +28,4 @@ Completed on 17 September 2026: 67 shared fixtures pass on both runtimes, core 2
 
 1E MVP essentials completed: connection timing is centralized in typed policy objects and the Android build helper is portable. Structured diagnostics and broader toolchain work are deferred until after the functional MVP.
 
-These are bounded checkpoints inside Stage 1, not permission to implement all at once. Keep apps runnable, validate each checkpoint, update PROGRESS.md, report completion/limitations and propose the next checkpoint. Security and Windows UI migrations need their own approved design and stage.
+These bounded checkpoints complete the MVP-essential Stage 1 work. Structured diagnostics, broad validation and release hardening remain deferred. Continue user-facing phases in small checkpoints, update PROGRESS.md, and ask before new permissions, wire/storage formats, privileged integrations, security migration or Windows UI migration.

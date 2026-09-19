@@ -8,7 +8,7 @@ Status: observed implementation, 17 September 2026. “Implemented” means code
 | --- | --- | --- | --- |
 | Presence | Connected/connecting/disconnected on both apps | Authenticated route status | No separate BLE presence model; no reasoned reconnect state |
 | Battery | Android -> Windows | Nullable snapshot section | Phone broadcast/hardware validation |
-| Network/cellular | Android -> Windows | Permission-aware friendly categories | No signal/generation event listener; multi-SIM policy absent |
+| Network/cellular | Android -> Windows | Permission-aware friendly categories and event callbacks | Physical-device and multi-SIM policy validation absent |
 | Sound mode | Android -> Windows, read-only | Nullable snapshot section | No sound-mode command/provider |
 | Media control | Windows -> phone; state Android -> Windows | Per-session `playPause`, `nextTrack`, `previousTrack` flags | No Windows media provider or reverse direction; Android dispatch does not separately enforce each advertised action |
 | Companion DND | Windows/local Android -> app-owned Android rule | `canControlCompanionRule`, nullable rule state | No Windows DND provider or cross-device automation policy |

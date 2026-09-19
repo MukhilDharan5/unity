@@ -1,6 +1,6 @@
 # Phone Companion
 
-The [progress and resume log](PROGRESS.md) records the current MVP checkpoint: automatic LAN discovery, reconnect/lifecycle coordination, explicit Android access state, portable Android builds and typed connection policy are implemented. Work is proceeding implementation-first with minimal compile checks; broad validation is deferred. The [Stage 0 audit](CURRENT_STATE.md) is the historical assessment. The secure-channel direction still needs a user decision before a compatibility-changing migration.
+The [progress and resume log](PROGRESS.md) records the current MVP checkpoint: automatic LAN discovery, reconnect/lifecycle coordination, live phone status, explicit Android access state, portable Android builds and typed connection policy are implemented. Work is proceeding implementation-first with minimal compile checks; broad validation is deferred. The [Stage 0 audit](CURRENT_STATE.md) is the historical assessment. The current encrypted v1 channel is the accepted interim MVP direction; any compatibility-changing security migration remains a separate post-MVP decision.
 
 A Windows desktop control app with a compact tray flyout and an Android companion. The two apps pair over BLE or Wi-Fi/LAN, verify a six-digit code, remember the approved device identity, and protect every application message with an authenticated encrypted session.
 

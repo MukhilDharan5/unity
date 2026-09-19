@@ -1,16 +1,16 @@
 # Incremental roadmap
 
-Status: Stage 0, Stage 1A, Stage 1B-W, Stage 1B-A1 and Stage 1B-A2 complete through 19 September 2026; Stage 1 overall remains in progress. [PROGRESS.md](../PROGRESS.md) and the [small-stage plan](stage-1-plan.md) define the next checkpoint. Existing code already contains parts of pairing, transport, state, UI, media, DND and clipboard, so later phases validate/refine them rather than pretend they are absent.
+Status: Stage 0 and the MVP-essential Stage 1 checkpoints are complete through 19 September 2026. Structured diagnostics, broad validation and release hardening remain deferred under the MVP pacing decision. [PROGRESS.md](../PROGRESS.md) defines the next checkpoint. Existing code already contains parts of pairing, transport, state, UI, media, DND and clipboard, so later phases validate/refine them rather than pretend they are absent.
 
 ## Stage 0 — Audit (complete)
 
 Objective: inspect structure, dependencies, platform APIs, state, UI, communications, trust and tests before significant changes. Delivered root `CURRENT_STATE.md`, current-baseline platform/security/capability/development/testing docs, corrected legacy statements, proposed ADRs and local validation evidence. Preserved app code and existing edits. No feature implementation or architecture decision was committed.
 
-## Stage 1 — Foundation consolidation (authorized; first checkpoint complete)
+## Stage 1 — Foundation consolidation (MVP essentials complete)
 
 Objective: make existing foundations coherent and testable. Implement shared positive/negative wire fixtures, validation parity/metadata normalization, a single production lifecycle with fake-frame test seams, bounded event-aware reconnect coordination, a small Android coordinator, explicit capability/permission/enablement state, redacted structured diagnostics and typed settings, and reproducible build helpers/pins.
 
-Stage 1A delivered strict application validation, metadata normalization and 67 shared fixtures. Stage 1B-W consolidated Windows live/core ownership (31 core tests, six live scenarios, UI smoke/build checks). Stage 1B-A1 added Android generation-fenced session/collector ownership. Stage 1B-A2 added per-run LAN/BLE resource ownership and stale callback fencing (34 regular tests, debug assembly/lint pass). Next: Stage 1C conservative reconnect and lifecycle coordination. Later checkpoints remain planned; security/UI decisions and protocol extensions require separate discussion.
+Stage 1A delivered strict application validation, metadata normalization and 67 shared fixtures. Stage 1B-W consolidated Windows live/core ownership (31 core tests, six live scenarios, UI smoke/build checks). Stage 1B-A1 added Android generation-fenced session/collector ownership. Stage 1B-A2 added per-run LAN/BLE resource ownership and stale callback fencing (34 regular tests, debug assembly/lint pass). Stage 1C added event-aware reconnect/listener recovery; 1D added explicit Android access state; the MVP parts of 1E added typed timing policy and a portable Android build helper. Security/UI migrations and protocol extensions still require separate discussion.
 
 Defer all new user-facing features, framework migration, privileged APIs, clipboard history, cloud, storage engines and Windows services. Discuss wire additions, storage/permissions and compatibility before changing them. Security channel replacement must be an explicitly approved focused substage with pairing/storage/migration feasibility work; it is not routine cleanup.
 
@@ -22,7 +22,7 @@ Constraints: Android foreground/background policy and clipboard privacy, optiona
 | --- | --- | --- |
 | 2 — Trusted pairing/presence | Implement approved trust/channel plan; timed discovery, remembered identity, revoke/recovery, connection state and conservative presence/reconnect | No proximity authentication or lock/unlock; adversarial and physical approval/revocation checks required |
 | 3 — LAN reliability | Automatic bootstrap/discovery, approved authenticated sessions, route selection/promotion, snapshots and bounded liveness | No audio/files; repeated sleep/network-change tests and idle measurements first |
-| 4 — Phone status | Validate collectors, telephony callbacks/permissions, truthful signal/network/unavailable state | No brightness/sensors; actual phone/multi-SIM validation |
+| 4 — Phone status (implemented, validation deferred) | Battery, connection route, telephony generation/5G override/signal callbacks and truthful unavailable state now feed Windows UI/tray | No brightness/sensors; actual phone/multi-SIM validation |
 | 5 — Windows shell | Implement selected WPF/WinUI direction, tray-first flyout, setup-focused full app, native materials/controls/accessibility | No dashboard expansion; light/dark/high-contrast, keyboard/screen reader, actual 100/125/150/200% DPI review |
 | 6 — Media | Refine phone state/actions and add Windows media provider plus reverse commands | No audio transport; correct session/capability targeting and metadata fixtures |
 | 7 — DND | Define synchronization ownership/triggers, use app-owned Android rule, research supported Windows behavior | No global/manual DND takeover; permission/rule/manual-override integration tests |
