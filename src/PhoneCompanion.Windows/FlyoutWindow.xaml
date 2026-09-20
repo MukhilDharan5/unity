@@ -118,9 +118,7 @@
                         Visibility="{Binding CanUsePhoneInternet, Converter={StaticResource BooleanToVisibility}}"
                         ToolTip="{Binding PhoneInternetDetail}" AutomationProperties.Name="Use phone internet" />
 
-                <!-- Keep the flyout compact: the player exists only while the phone reports active playback. -->
-                <Border x:Name="MediaCard" Visibility="{Binding HasMedia, Converter={StaticResource BooleanToVisibility}}"
-                        CornerRadius="13" Background="{DynamicResource SurfaceBackground}"
+                <Border x:Name="MediaCard" CornerRadius="13" Background="{DynamicResource SurfaceBackground}"
                         BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="19,17,19,14" Margin="0,19,0,0">
                     <StackPanel>
                         <Grid Margin="0,0,0,13">

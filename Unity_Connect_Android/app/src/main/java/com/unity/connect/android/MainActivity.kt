@@ -242,39 +242,40 @@ private fun CompanionControls(uiState: UiState, viewModel: AppViewModel, associa
         }
     }
 
-    uiState.pcMedia?.let { media ->
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text("Playing on laptop", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    media.source ?: "Windows media",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Text(media.title ?: "Untitled media", style = MaterialTheme.typography.titleLarge)
-                media.artist?.let {
-                    Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = { viewModel.sendPcMediaCommand("previous_track") },
-                        enabled = media.capabilities.previousTrack,
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Previous") }
-                    Button(
-                        onClick = { viewModel.sendPcMediaCommand("play_pause") },
-                        enabled = media.capabilities.playPause,
-                        modifier = Modifier.weight(1f)
-                    ) { Text(if (media.isPlaying) "Pause" else "Play") }
-                    Button(
-                        onClick = { viewModel.sendPcMediaCommand("next_track") },
-                        enabled = media.capabilities.nextTrack,
-                        modifier = Modifier.weight(1f)
-                    ) { Text("Next") }
-                }
+    val media = uiState.pcMedia
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Text("Laptop media", style = MaterialTheme.typography.titleMedium)
+            Text(
+                media?.source ?: "Windows media",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(media?.title ?: "Nothing playing", style = MaterialTheme.typography.titleLarge)
+            Text(
+                media?.artist ?: if (uiState.connectionState == ConnectionState.CONNECTED)
+                    "Play something on your laptop" else "Connect your laptop to see media",
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { viewModel.sendPcMediaCommand("previous_track") },
+                    enabled = media?.capabilities?.previousTrack == true,
+                    modifier = Modifier.weight(1f)
+                ) { Text("Previous") }
+                Button(
+                    onClick = { viewModel.sendPcMediaCommand("play_pause") },
+                    enabled = media?.capabilities?.playPause == true,
+                    modifier = Modifier.weight(1f)
+                ) { Text(if (media?.isPlaying == true) "Pause" else "Play") }
+                Button(
+                    onClick = { viewModel.sendPcMediaCommand("next_track") },
+                    enabled = media?.capabilities?.nextTrack == true,
+                    modifier = Modifier.weight(1f)
+                ) { Text("Next") }
             }
         }
     }

@@ -283,6 +283,12 @@ The Windows reconnect coordinator now continues until both remembered routes aut
 
 No protocol payload, trust identity or Android permission changed. Bulk laptop audio remains on its separate Wi-Fi-only encrypted socket. Minimal verification is limited to focused Windows and Android compilation; physical dual-radio reliability, battery use, Android background policy and handoff timing remain deferred. ADR-009 records the routing policy.
 
+### 20 September 2026 — Media players made persistent
+
+The user requested that the audio/media player remain visible even when nothing is playing. The Windows flyout and dashboard now always render their media cards. Paused sessions retain their metadata and controls; idle, disconnected, and unavailable states show **Nothing playing** with an **Idle** label and capability-disabled buttons. Android's paired-device screen likewise always renders the laptop media card with friendly idle/disconnected text and disabled controls until Windows advertises supported actions.
+
+No message, permission, playback provider or command behavior changed. Existing Windows smoke expectations were updated to match the persistent presentation. The focused Windows Release build passed with 0 warnings/errors, and Android `:app:compileDebugKotlin --offline --no-daemon` passed; broad rendering and device validation remain deferred under the MVP pacing decision.
+
 ## Next concrete resume action
 
 The master feature sequence is implemented through Stage 16 at MVP scope, with remote unlock intentionally excluded. The next practical coding step is release packaging and install/update polish, followed later by the deferred physical-device shakeout. Stage 9 OEM performance profiles also remains unimplemented and should start with provider feasibility rather than a fake mapping to Windows power plans.

@@ -82,7 +82,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     public AsyncCommand ToggleProximityLock { get; }
     public bool IsConnected => _state.Connection == ConnectionState.Connected;
     public bool IsDemo => _state.IsDemo;
-    public bool HasMedia => _state.Media?.IsPlaying == true;
+    public bool HasMedia => _state.Media is not null;
     private bool CanControl => !_busy && IsConnected;
     public string Status => _state.Connection switch
     {
@@ -215,7 +215,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
             return string.Join(" · ", new[] { dataConnection, network, signal }.Where(value => value is not null));
         }
     }
-    public string Source => _state.Media?.Source ?? "Now playing";
+    public string Source => _state.Media?.Source ?? "Phone media";
     public string Title => _state.Media?.Title ?? (_state.Media is null ? "Nothing playing" : "Untitled media");
     public string Artist => _state.Media?.Artist ?? (_state.Media is not null ? "Artist unavailable"
         : IsConnected ? "Play something on your phone" : "Connect your phone to see media");
@@ -227,7 +227,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     public string DndRuleAction => IsDndRuleActive ? "Turn companion DND off" : "Turn companion DND on";
     public string Sound => _state.Sound?.ToString() ?? "Unavailable";
     public string PlaybackLabel => _state.Media?.IsPlaying == true ? "Pause" : "Play";
-    public string PlaybackStateText => _state.Media?.IsPlaying == true ? "Playing" : "Paused";
+    public string PlaybackStateText => _state.Media is null ? "Idle" : _state.Media.IsPlaying ? "Playing" : "Paused";
     public string PlaybackPath => _state.Media?.IsPlaying == true
         ? "M 6,4 L 10,4 L 10,20 L 6,20 Z M 14,4 L 18,4 L 18,20 L 14,20 Z"
         : "M 7,3 L 21,12 L 7,21 Z";

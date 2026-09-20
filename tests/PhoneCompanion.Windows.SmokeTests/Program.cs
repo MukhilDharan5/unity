@@ -54,9 +54,9 @@ internal static class Program
         await Settle();
         Check(model.Status == "Not connected" && model.Dnd == "Unavailable" && !model.PlayPause.CanExecute(null), "Disconnected presentation");
         Check(model.ClipboardStatus == "Off", "Clipboard sync defaults off");
-        Check(!model.HasMedia && mediaCard.Visibility == Visibility.Collapsed, "Player hidden without an active media session");
+        Check(!model.HasMedia && mediaCard.Visibility == Visibility.Visible, "Player remains visible without an active media session");
         Render(flyout, output, "disconnected", 1);
-        Check(desktopMedia.Visibility == Visibility.Collapsed, "Desktop hides unavailable media");
+        Check(desktopMedia.Visibility == Visibility.Visible, "Desktop keeps unavailable media visible");
         RenderDesktop(desktop, output, "desktop-disconnected");
         RenderPairing(pairing, output, "pairing-light");
 
@@ -109,8 +109,8 @@ internal static class Program
         model.PlayPause.Execute(null);
         await Eventually(() => model.PlaybackLabel == "Play" && model.PlayPause.CanExecute(null));
         Check(model.PlaybackStateText == "Paused", "Paused state is displayed");
-        Check(!model.HasMedia && mediaCard.Visibility == Visibility.Collapsed, "Paused media player stays hidden");
-        Check(desktopMedia.Visibility == Visibility.Collapsed, "Desktop hides paused media");
+        Check(model.HasMedia && mediaCard.Visibility == Visibility.Visible, "Paused media player remains visible");
+        Check(desktopMedia.Visibility == Visibility.Visible, "Desktop keeps paused media visible");
         var first = model.Title;
         model.Next.Execute(null);
         await Eventually(() => model.Title != first && model.Next.CanExecute(null));
@@ -156,7 +156,7 @@ internal static class Program
         await Settle();
         Check(model.Title == "Nothing playing" && !model.PlayPause.CanExecute(null) && !model.HasMedia,
             "No active media disables controls");
-        Check(mediaCard.Visibility == Visibility.Collapsed, "Player collapses when media ends");
+        Check(mediaCard.Visibility == Visibility.Visible, "Player remains visible when media ends");
         SystemThemeService.ApplyPalette(Application.Current.Resources, AppTheme.Dark);
         await Settle();
         Render(flyout, output, "no-media-dark", 1);
