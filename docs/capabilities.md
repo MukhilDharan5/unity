@@ -17,7 +17,9 @@ Status: observed implementation, 17 September 2026. “Implemented” means code
 | OEM laptop profile | Absent | None | Requires provider discovery and hardware research |
 | Brightness/ambient/pocket | Android -> Windows state; Windows -> Android control | Special Android settings access for control; light/proximity sensor availability | Device filtering, pocket classification and OEM brightness behavior need validation |
 | Laptop adaptive brightness | Phone ambient light -> Windows integrated display, opt-in per app session | Valid non-demo phone state plus `WmiMonitorBrightness` support | Laptop-panel comfort/power validation; external DDC/CI monitors are not supported |
-| Headphone handoff/hotspot/audio | Absent | None | Public/OEM/optional privileged feasibility unresolved |
+| Bluetooth audio observation | Local Android UI | Existing `BLUETOOTH_CONNECT` access and public A2DP callbacks | Physical-device validation; only the first connected output is shown |
+| Headphone handoff | Provider decision pending | Public API 37 association, assisted fallback, or optional privileged provider | No cross-device state/command or disconnect action until ADR-005 is decided |
+| Hotspot/audio streaming | Absent | None | Public/OEM/optional privileged feasibility unresolved |
 | PC activity/lock/unlock | Absent | None | Privacy policy; lock safeguards; separate unlock security project |
 
 Nullable data is distinct from unsupported functionality. Battery unavailable is not 0%; no media session and missing notification access currently share `media:null`. Missing phone-state permission produces unknown cellular fields, not a known lack of cellular hardware.

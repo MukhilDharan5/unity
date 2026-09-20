@@ -56,6 +56,7 @@ UI checks instantiate the actual XAML, view model and tray controller, exercise 
 | Windows media on Android | Current Windows media source/title/artist/playback and capability-gated controls |
 | Open phone | Launches a detected scrcpy installation without using ADB as the companion transport |
 | Brightness and light | Reports and controls phone brightness; optionally maps valid phone ambient light to supported laptop displays with smoothing, hysteresis and bounded transitions |
+| Bluetooth audio | Android locally shows the connected A2DP output; cross-device handoff control path is awaiting the Stage 13 decision |
 | Companion DND | App-owned Android `AutomaticZenRule`; Windows control never changes manual/global DND directly |
 | Clipboard | Opt-in new-text sync, 12 KiB limit, loop suppression, no stored history; Android sends only on a visible user action |
 | Message layer | JSON v1 behind `IPhoneMessageCodec`; authenticated encryption and replay rejection below it |

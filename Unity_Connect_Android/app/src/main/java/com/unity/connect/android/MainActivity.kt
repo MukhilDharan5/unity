@@ -161,6 +161,19 @@ private fun PairingContent(uiState: UiState, viewModel: AppViewModel) {
 
 @Composable
 private fun CompanionControls(uiState: UiState, viewModel: AppViewModel) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("Audio output", style = MaterialTheme.typography.titleMedium)
+            Text(uiState.bluetoothAudioName ?: "Phone")
+            Text(
+                if (uiState.bluetoothAudioName == null) "No Bluetooth audio device connected"
+                else "Bluetooth audio connected",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+
     uiState.pcMedia?.let { media ->
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {

@@ -24,6 +24,7 @@ import com.unity.connect.android.dnd.CompanionDndController
 import com.unity.connect.android.lan.LanServer
 import com.unity.connect.android.state.StateCollector
 import com.unity.connect.android.state.BrightnessController
+import com.unity.connect.android.state.BluetoothAudioMonitor
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.*
@@ -50,6 +51,7 @@ data class UiState(
     val clipboardSyncEnabled: Boolean = false,
     val featureNotice: String? = null,
     val pcMedia: MediaState? = null,
+    val bluetoothAudioName: String? = null,
     val wifiAddress: String? = null,
     val awaitingOtherDevice: Boolean = false,
     val access: AccessState = AccessState()
@@ -71,7 +73,7 @@ class ConnectionService : Service() {
         fun sendPcMediaCommand(command: String) { instance?.sendPcMediaCommand(command) }
         fun setCompanionDndActive(active: Boolean) { instance?.dnd?.setCompanionRuleActive(active) }
         fun refreshDndState() { instance?.apply {
-            dnd.refresh(); refreshAccessState(); refreshAddress(); restartCollector()
+            dnd.refresh(); bluetoothAudio.refresh(); refreshAccessState(); refreshAddress(); restartCollector()
             if (listenersWanted()) { ble.start(); lan.start() }
         } }
     }
@@ -82,6 +84,7 @@ class ConnectionService : Service() {
     private lateinit var clipboard: ClipboardBridge
     private lateinit var collector: StateCollector
     private lateinit var brightness: BrightnessController
+    private lateinit var bluetoothAudio: BluetoothAudioMonitor
     private val prefs by lazy { getSharedPreferences("secure_peers_v1", MODE_PRIVATE) }
     private val identity by lazy { IdentityStore.load() }
     private val owner = PhoneSessionOwner(scope) { scope.launch { onSessionsChanged() } }
@@ -131,6 +134,7 @@ class ConnectionService : Service() {
         instance = this
         dnd = CompanionDndController(this)
         brightness = BrightnessController(this)
+        bluetoothAudio = BluetoothAudioMonitor(this)
         clipboard = ClipboardBridge(this)
         collector = StateCollector(this, dnd, brightness)
         collection = PhoneStateCollection(scope, owner, collector.phoneState)
@@ -138,6 +142,9 @@ class ConnectionService : Service() {
             clipboardSyncEnabled = clipboard.enabled, access = readAccessState())
         dnd.state.onEach { value -> state.update { it.copy(canControlCompanionDnd = value?.canControlCompanionRule == true,
             companionDndActive = value?.companionRuleActive == true) } }.launchIn(scope)
+        bluetoothAudio.state.onEach { value ->
+            state.update { it.copy(bluetoothAudioName = value?.deviceName) }
+        }.launchIn(scope)
         ble = BleManager(this, { pipe -> owner.accept("ble", pipe, ::accept) },
             { text -> listenerError("ble", bleEpoch, text) })
         lan = LanServer(this, { pipe -> owner.accept("wifi", pipe, ::accept) },
@@ -450,7 +457,7 @@ class ConnectionService : Service() {
         clipboard.updateEnabled(false)
         stopListeners()
         stopCollector()
-        state.value = UiState()
+        state.value = UiState(bluetoothAudioName = bluetoothAudio.state.value?.deviceName)
     }
     private fun notification(text: String): Notification {
         val intent = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
@@ -466,6 +473,7 @@ class ConnectionService : Service() {
         instance = null
         unregisterRuntimeSignals()
         owner.close(); stopCollector(); pcMediaCommand?.cancel(); pcMediaCommand = null
+        bluetoothAudio.close()
         pairingExpiry?.cancel(); pairingExpiry = null
         stopListeners(); scope.cancel(); dnd.close()
         state.update { it.copy(connectionState = ConnectionState.DISCONNECTED, sasCode = null,

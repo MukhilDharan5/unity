@@ -225,8 +225,16 @@ The controller is off at every launch, ignores sample data, and reports unsuppor
 
 Minimal verification per the current instruction: the focused Windows Release build passed with 0 warnings/errors. The first solution restore reached the blocked online NuGet vulnerability endpoint; a focused restore with auditing disabled used the already-cached package and succeeded. Hardware response, brightness comfort tuning, UI rendering and broader tests remain deferred.
 
+### 20 September 2026 — Stage 13 headphone-handoff provider foundation
+
+The public platform feasibility pass found that Android's `BluetoothA2dp` API can observe connected audio devices with the app's existing `BLUETOOTH_CONNECT` access, but the project's Android 12–14 baseline has no public profile disconnect method. Android API 37 adds `BluetoothDevice.disconnect()`, gated by the same runtime permission plus either privileged Bluetooth access or a user-approved Companion Device Manager association with that headset. Windows documents enumeration/pairing and Bluetooth service enablement, but service enablement installs/removes a profile driver rather than transferring an active headset.
+
+Implemented the safe provider foundation while leaving the major choice open. New `BluetoothAudioMonitor` uses the public A2DP profile proxy and connection broadcasts, publishes a normalized bounded device label to local Android UI state, and releases its receiver/profile proxy with the service. The Android app now shows **Audio output** as the connected device name or **Phone**. Addresses are not retained or displayed. No permission, wire field, persistence, privileged helper, disconnect call or Windows UI was added.
+
+`ADR-005-headphone-handoff.md` records four concrete paths and recommends public API plus an assisted fallback: on API 37+, a separately approved headset association can permit direct release; Android 12–16 opens the narrowest system flow for user action. Optional Shizuku/ADB providers remain isolated future choices and accessibility automation is not recommended. Minimal verification only: Android `:app:compileDebugKotlin --offline --no-daemon` passed. Physical A2DP callbacks and labels remain untested.
+
 ## Next concrete resume action
 
-Stage 12 is complete. The next planned feature is Stage 13 Bluetooth headphone handoff. Start with a bounded public-API/OEM feasibility and provider-boundary slice, then ask directly before adding any Android permission, Shizuku/ADB path, accessibility automation, protocol field or persistence format.
+Stage 13's observation/provider foundation is complete. A direct decision is now required for ADR-005 before adding the cross-device state/command and transfer action. The recommended MVP is public API plus assisted fallback; Shizuku/ADB remain optional future providers and accessibility automation remains excluded.
 
 Do not repeat Stage 0 or migrate TLS/WinUI without a new explicit decision. Preserve the Windows UI and Android root build/helper edits. The user authorized the repository snapshot and GitHub push recorded above.
