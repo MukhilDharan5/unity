@@ -11,6 +11,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.IntentSenderRequest
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -91,6 +92,9 @@ fun AppScreen(viewModel: AppViewModel = viewModel()) {
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { ConnectionService.refreshDndState() }
+    val associationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { ConnectionService.refreshDndState() }
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -123,7 +127,11 @@ fun AppScreen(viewModel: AppViewModel = viewModel()) {
             if (uiState.connectionState != ConnectionState.CONNECTED) {
                 Button(onClick = viewModel::startPairing) { Text("Reconnect") }
             }
-            CompanionControls(uiState, viewModel)
+            CompanionControls(uiState, viewModel) {
+                viewModel.associateCurrentAudioDevice { sender ->
+                    associationLauncher.launch(IntentSenderRequest.Builder(sender).build())
+                }
+            }
             Button(
                 onClick = viewModel::forgetDevice,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
@@ -160,17 +168,24 @@ private fun PairingContent(uiState: UiState, viewModel: AppViewModel) {
 }
 
 @Composable
-private fun CompanionControls(uiState: UiState, viewModel: AppViewModel) {
+private fun CompanionControls(uiState: UiState, viewModel: AppViewModel, associateHeadphones: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text("Audio output", style = MaterialTheme.typography.titleMedium)
             Text(uiState.bluetoothAudioName ?: "Phone")
             Text(
-                if (uiState.bluetoothAudioName == null) "No Bluetooth audio device connected"
-                else "Bluetooth audio connected",
+                when {
+                    uiState.bluetoothAudioName == null -> "No Bluetooth audio device connected"
+                    uiState.bluetoothAudioCanRelease -> "One-tap laptop handoff is ready"
+                    else -> "Guided laptop handoff is available"
+                },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall
             )
+            if (Build.VERSION.SDK_INT >= 37 && uiState.bluetoothAudioName != null &&
+                !uiState.bluetoothAudioCanRelease) {
+                Button(onClick = associateHeadphones) { Text("Enable one-tap handoff") }
+            }
         }
     }
 

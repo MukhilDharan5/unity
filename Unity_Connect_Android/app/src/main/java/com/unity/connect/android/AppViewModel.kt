@@ -2,6 +2,7 @@ package com.unity.connect.android
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.IntentSender
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -45,5 +46,9 @@ class AppViewModel : ViewModel() {
 
     fun refreshDndState() {
         ConnectionService.refreshDndState()
+    }
+
+    fun associateCurrentAudioDevice(onPending: (IntentSender) -> Unit) {
+        ConnectionService.associateCurrentAudioDevice(onPending)
     }
 }

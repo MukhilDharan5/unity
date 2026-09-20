@@ -1,6 +1,6 @@
 # Phone Companion
 
-The [progress and resume log](PROGRESS.md) records the current MVP checkpoint: automatic LAN discovery, reconnect/lifecycle coordination, live phone status, bidirectional media control, optional scrcpy launch, phone brightness/light sensing, opt-in laptop adaptive brightness, explicit Android access state, portable Android builds and typed connection policy are implemented. Work is proceeding implementation-first with minimal compile checks; broad validation is deferred. The [Stage 0 audit](CURRENT_STATE.md) is the historical assessment. The current encrypted v1 channel is the accepted interim MVP direction; any compatibility-changing security migration remains a separate post-MVP decision.
+The [progress and resume log](PROGRESS.md) records the current MVP checkpoint: automatic LAN discovery, reconnect/lifecycle coordination, live phone status, bidirectional media control, optional scrcpy launch, phone brightness/light sensing, opt-in laptop adaptive brightness, public/assisted headphone handoff with optional ADB acceleration, explicit Android access state, portable Android builds and typed connection policy are implemented. Work is proceeding implementation-first with minimal compile checks; broad validation is deferred. The [Stage 0 audit](CURRENT_STATE.md) is the historical assessment. The current encrypted v1 channel is the accepted interim MVP direction; any compatibility-changing security migration remains a separate post-MVP decision.
 
 A Windows desktop control app with a compact tray flyout and an Android companion. The two apps pair over BLE or Wi-Fi/LAN, verify a six-digit code, remember the approved device identity, and protect every application message with an authenticated encrypted session.
 
@@ -56,7 +56,7 @@ UI checks instantiate the actual XAML, view model and tray controller, exercise 
 | Windows media on Android | Current Windows media source/title/artist/playback and capability-gated controls |
 | Open phone | Launches a detected scrcpy installation without using ADB as the companion transport |
 | Brightness and light | Reports and controls phone brightness; optionally maps valid phone ambient light to supported laptop displays with smoothing, hysteresis and bounded transitions |
-| Bluetooth audio | Android locally shows the connected A2DP output; cross-device handoff control path is awaiting the Stage 13 decision |
+| Bluetooth audio | Reports the current Android A2DP output; Windows requests release, opens Bluetooth settings, and can optionally foreground the phone flow through an authorized ADB installation |
 | Companion DND | App-owned Android `AutomaticZenRule`; Windows control never changes manual/global DND directly |
 | Clipboard | Opt-in new-text sync, 12 KiB limit, loop suppression, no stored history; Android sends only on a visible user action |
 | Message layer | JSON v1 behind `IPhoneMessageCodec`; authenticated encryption and replay rejection below it |

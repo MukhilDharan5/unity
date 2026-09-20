@@ -29,6 +29,7 @@ internal object V1MessageValidator {
             "pc_media_command" -> require(text(root, "command", 32, true) in MEDIA_COMMANDS)
             "brightness_command" -> brightnessCommand(root)
             "dnd_rule_command" -> boolean(root, "active")
+            "headphone_handoff" -> Unit
             "clipboard" -> clipboard(root)
             else -> throw IllegalArgumentException("Unknown application message")
         }
@@ -40,7 +41,8 @@ internal object V1MessageValidator {
         cellular = nullable(required(root, "cellular")) { cellular(objectValue(it)) },
         dnd = nullable(required(root, "dnd")) { dnd(objectValue(it)) },
         sound = nullable(required(root, "sound"), ::sound),
-        brightness = root["brightness"]?.let { nullable(it, ::brightness) }
+        brightness = root["brightness"]?.let { nullable(it, ::brightness) },
+        audioOutput = root["audioOutput"]?.let { nullable(it, ::audioOutput) }
     )
 
     fun clipboard(root: JsonObject): ClipboardContent {
@@ -60,6 +62,7 @@ internal object V1MessageValidator {
         "pc_media" -> IncomingMessage.PcMediaUpdate(nullable(required(root, "state"), ::media))
         "brightness_command" -> brightnessCommand(root)
         "dnd_rule_command" -> IncomingMessage.DndRuleCommand(boolean(root, "active"))
+        "headphone_handoff" -> IncomingMessage.HeadphoneHandoff
         "clipboard" -> IncomingMessage.ClipboardUpdate(clipboard(root))
         else -> null // Valid phone-state messages are not commands for Android.
     }
@@ -111,6 +114,14 @@ internal object V1MessageValidator {
             "Invalid ambient state"
         }
         return BrightnessState(level, boolean(root, "adaptive"), boolean(root, "canControl"), lux, status)
+    }
+
+    private fun audioOutput(value: JsonElement): AudioOutputState {
+        val root = objectValue(value)
+        return AudioOutputState(
+            deviceName = text(root, "deviceName", 80, true)!!,
+            canRelease = boolean(root, "canRelease")
+        )
     }
 
     private fun brightnessCommand(root: JsonObject): IncomingMessage.BrightnessCommand {

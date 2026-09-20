@@ -31,6 +31,7 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
                 root["dnd"] = m.Dnd is null ? null : Dnd(m.Dnd);
                 root["sound"] = m.Sound is null ? null : JsonValue.Create(Sound(m.Sound.Value));
                 root["brightness"] = m.Brightness is null ? null : Brightness(m.Brightness);
+                root["audioOutput"] = m.AudioOutput is null ? null : AudioOutput(m.AudioOutput);
                 break;
             case MediaCommandMessage m:
                 root["type"] = "media_command";
@@ -56,6 +57,9 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
             case DndRuleCommandMessage m:
                 root["type"] = "dnd_rule_command";
                 root["active"] = m.Active;
+                break;
+            case HeadphoneHandoffCommandMessage:
+                root["type"] = "headphone_handoff";
                 break;
             case ClipboardUpdate m:
                 root["type"] = "clipboard";
@@ -98,6 +102,7 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
                 "pc_media_command" => new PcMediaCommandMessage(ReadMediaCommand(r)),
                 "brightness_command" => ReadBrightnessCommand(r),
                 "dnd_rule_command" => new DndRuleCommandMessage(Bool(r, "active")),
+                "headphone_handoff" => new HeadphoneHandoffCommandMessage(),
                 "clipboard" => new ClipboardUpdate(ReadClipboard(r)),
                 _ => null
             };
@@ -206,6 +211,8 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
         if ((status == AmbientLightStatus.Valid) != ambient.HasValue) throw new FormatException();
         return new(level, Bool(r, "adaptive"), Bool(r, "canControl"), ambient, status);
     }
+    private static PhoneAudioOutputState ReadAudioOutput(JsonElement r) => new(
+        Text(r, "deviceName", 80, required: true)!, Bool(r, "canRelease"));
     private static PhoneBrightnessCommandMessage ReadBrightnessCommand(JsonElement r)
     {
         var level = NullableInt(r, "level");
@@ -228,7 +235,9 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
         ReadNullable(r.GetProperty("dnd"), ReadDnd),
         r.GetProperty("sound").ValueKind == JsonValueKind.Null ? null : ReadSound(r.GetProperty("sound")),
         r.TryGetProperty("brightness", out var brightness) && brightness.ValueKind != JsonValueKind.Null
-            ? ReadBrightness(brightness) : null);
+            ? ReadBrightness(brightness) : null,
+        r.TryGetProperty("audioOutput", out var audioOutput) && audioOutput.ValueKind != JsonValueKind.Null
+            ? ReadAudioOutput(audioOutput) : null);
     private static JsonObject Battery(BatteryState s) => new() { ["level"] = s.Level, ["charging"] = s.Charging };
     private static JsonObject? Media(MediaState? s) => s is null ? null : new()
     {
@@ -264,6 +273,11 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
             AmbientLightStatus.Unavailable => "unavailable",
             _ => throw new ArgumentOutOfRangeException(nameof(s))
         }
+    };
+    private static JsonObject AudioOutput(PhoneAudioOutputState s) => new()
+    {
+        ["deviceName"] = s.DeviceName,
+        ["canRelease"] = s.CanRelease
     };
     private static string Sound(SoundMode s) => s.ToString().ToLowerInvariant();
     private static MediaCommand ReadMediaCommand(JsonElement r) => Text(r, "command", 32, true) switch

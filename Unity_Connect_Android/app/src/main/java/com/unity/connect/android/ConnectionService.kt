@@ -13,6 +13,7 @@ import android.net.LinkProperties
 import android.net.Network
 import android.os.Build
 import android.os.IBinder
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.PermissionChecker
@@ -25,6 +26,7 @@ import com.unity.connect.android.lan.LanServer
 import com.unity.connect.android.state.StateCollector
 import com.unity.connect.android.state.BrightnessController
 import com.unity.connect.android.state.BluetoothAudioMonitor
+import com.unity.connect.android.state.HeadphoneReleaseResult
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.*
@@ -52,6 +54,7 @@ data class UiState(
     val featureNotice: String? = null,
     val pcMedia: MediaState? = null,
     val bluetoothAudioName: String? = null,
+    val bluetoothAudioCanRelease: Boolean = false,
     val wifiAddress: String? = null,
     val awaitingOtherDevice: Boolean = false,
     val access: AccessState = AccessState()
@@ -76,6 +79,11 @@ class ConnectionService : Service() {
             dnd.refresh(); bluetoothAudio.refresh(); refreshAccessState(); refreshAddress(); restartCollector()
             if (listenersWanted()) { ble.start(); lan.start() }
         } }
+        fun associateCurrentAudioDevice(onPending: (android.content.IntentSender) -> Unit) {
+            instance?.bluetoothAudio?.requestAssociation(onPending) { message ->
+                state.update { it.copy(featureNotice = message) }
+            }
+        }
     }
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
     private lateinit var ble: BleManager
@@ -136,14 +144,17 @@ class ConnectionService : Service() {
         brightness = BrightnessController(this)
         bluetoothAudio = BluetoothAudioMonitor(this)
         clipboard = ClipboardBridge(this)
-        collector = StateCollector(this, dnd, brightness)
+        collector = StateCollector(this, dnd, brightness, bluetoothAudio)
         collection = PhoneStateCollection(scope, owner, collector.phoneState)
         state.value = UiState(isPaired = prefs.contains("identity"), pairedPcName = prefs.getString("name", null),
             clipboardSyncEnabled = clipboard.enabled, access = readAccessState())
         dnd.state.onEach { value -> state.update { it.copy(canControlCompanionDnd = value?.canControlCompanionRule == true,
             companionDndActive = value?.companionRuleActive == true) } }.launchIn(scope)
         bluetoothAudio.state.onEach { value ->
-            state.update { it.copy(bluetoothAudioName = value?.deviceName) }
+            state.update { it.copy(
+                bluetoothAudioName = value?.deviceName,
+                bluetoothAudioCanRelease = value?.canRelease == true
+            ) }
         }.launchIn(scope)
         ble = BleManager(this, { pipe -> owner.accept("ble", pipe, ::accept) },
             { text -> listenerError("ble", bleEpoch, text) })
@@ -410,9 +421,38 @@ class ConnectionService : Service() {
                 it.copy(featureNotice = "Allow phone brightness control in Android settings first.")
             }
             is IncomingMessage.DndRuleCommand -> dnd.setCompanionRuleActive(message.active)
+            IncomingMessage.HeadphoneHandoff -> handleHeadphoneHandoff()
             is IncomingMessage.ClipboardUpdate -> if (clipboard.enabled) clipboard.applyIncoming(message.content)
             null -> Unit
         }
+    }
+    private fun handleHeadphoneHandoff() {
+        val deviceName = bluetoothAudio.state.value?.deviceName ?: "Bluetooth headphones"
+        when (bluetoothAudio.releaseForHandoff()) {
+            HeadphoneReleaseResult.REQUESTED -> state.update {
+                it.copy(featureNotice = "Releasing $deviceName for your laptop…")
+            }
+            HeadphoneReleaseResult.NEEDS_USER_ACTION -> {
+                state.update { it.copy(featureNotice = "Tap the handoff notification to disconnect $deviceName.") }
+                showHandoffNotification(deviceName)
+            }
+            HeadphoneReleaseResult.NO_DEVICE -> state.update {
+                it.copy(featureNotice = "No Bluetooth audio device is connected to this phone.")
+            }
+        }
+    }
+    private fun showHandoffNotification(deviceName: String) {
+        val settings = Intent(Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val pending = PendingIntent.getActivity(this, 2, settings,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val notification = NotificationCompat.Builder(this, "unity_service")
+            .setContentTitle("Move $deviceName to laptop")
+            .setContentText("Tap to open Bluetooth settings, then disconnect the device.")
+            .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
+            .setContentIntent(pending)
+            .setAutoCancel(true)
+            .build()
+        NotificationManagerCompat.from(this).notify(2, notification)
     }
     private fun sendPcMediaCommand(command: String) {
         val media = state.value.pcMedia
@@ -457,7 +497,10 @@ class ConnectionService : Service() {
         clipboard.updateEnabled(false)
         stopListeners()
         stopCollector()
-        state.value = UiState(bluetoothAudioName = bluetoothAudio.state.value?.deviceName)
+        state.value = UiState(
+            bluetoothAudioName = bluetoothAudio.state.value?.deviceName,
+            bluetoothAudioCanRelease = bluetoothAudio.state.value?.canRelease == true
+        )
     }
     private fun notification(text: String): Notification {
         val intent = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)

@@ -30,6 +30,7 @@ public sealed record PhoneBrightnessState(
     bool CanControl,
     double? AmbientLux,
     AmbientLightStatus AmbientStatus);
+public sealed record PhoneAudioOutputState(string DeviceName, bool CanRelease);
 public sealed record ClipboardContent(Guid UpdateId, string Text);
 
 // Null means the phone has not supplied this state. Never infer an Off/Normal/0% value.
@@ -41,7 +42,8 @@ public sealed record PhoneState(
     CellularState? Cellular = null,
     DndState? Dnd = null,
     SoundMode? Sound = null,
-    PhoneBrightnessState? Brightness = null)
+    PhoneBrightnessState? Brightness = null,
+    PhoneAudioOutputState? AudioOutput = null)
 {
     public static PhoneState Empty { get; } = new(ConnectionState.Disconnected);
     public bool IsDemo => Transport == TransportKind.Mock;

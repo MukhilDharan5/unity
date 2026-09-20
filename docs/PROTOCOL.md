@@ -87,6 +87,14 @@ New peers may add an optional `brightness` section to the snapshot. Its absence 
 
 `level` is 0–100. `ambientStatus` is `valid`, `covered`, or `unavailable`; only `valid` carries an `ambientLux` number from 0 through 200,000. `canControl` reflects Android's current special settings access and is never inferred on Windows.
 
+The optional `audioOutput` section reports the first connected Android A2DP output. Its absence means no output is available or the older peer does not implement the field:
+
+```json
+"audioOutput":{"deviceName":"Galaxy Buds","canRelease":true}
+```
+
+`deviceName` is a nonblank display label of at most 80 characters. Bluetooth addresses never cross the companion connection. `canRelease` is true only when the running Android version exposes the public release operation and the user has associated this headset through Companion Device Manager.
+
 For example, clearing battery availability in v1 requires a snapshot with `battery:null` and the current values (or `null`) for the other sections. There is no implicit expiry duration in v1. Each future transport's reviewed liveness mechanism must report disconnection; Windows then clears all values immediately.
 
 ## Windows → phone
@@ -132,6 +140,14 @@ Companion DND changes use a distinct command:
 ```
 
 Android applies this command only to Unity Connect's own `AutomaticZenRule` condition. It never calls a global/manual DND setter. The UI waits for a later DND state message rather than changing effective DND optimistically.
+
+Headphone handoff is an explicit command with no payload fields:
+
+```json
+{"version":1,"type":"headphone_handoff"}
+```
+
+Android accepts it only on the authenticated active session. A capable associated phone requests release through the public platform API. Otherwise Android posts a user-action notification that opens Bluetooth settings. Windows may also use an optional authorized ADB executable to foreground that same settings screen, but ADB is outside this protocol and never becomes a companion transport. Windows opens its own Bluetooth settings so the user can select the released headset.
 
 Clipboard text can travel in either direction over an authenticated session:
 

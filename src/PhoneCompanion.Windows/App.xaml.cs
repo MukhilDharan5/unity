@@ -29,6 +29,7 @@ public partial class App : Application
     private ClipboardSyncCoordinator? _clipboard;
     private WindowsMediaController? _windowsMedia;
     private PhoneScreenLauncher? _phoneScreen;
+    private HeadphoneHandoffAssistant? _headphoneHandoff;
     private LaptopAdaptiveBrightnessController? _laptopBrightness;
     private PairingWindow? _pairing;
     private readonly IdentityAndTrustStore _connectionStore = new();
@@ -55,9 +56,11 @@ public partial class App : Application
         _windowsMedia = await WindowsMediaController.CreateAsync();
         _windowsMedia.StateChanged += OnWindowsMediaChanged;
         _phoneScreen = new PhoneScreenLauncher();
+        _headphoneHandoff = new HeadphoneHandoffAssistant();
         _laptopBrightness = await LaptopAdaptiveBrightnessController.CreateAsync();
         _clipboard = new ClipboardSyncCoordinator(_manager, new WindowsClipboardService(Dispatcher), Dispatcher);
-        _viewModel = new PhoneViewModel(_manager, Dispatcher, _clipboard, _phoneScreen.Open, _laptopBrightness);
+        _viewModel = new PhoneViewModel(_manager, Dispatcher, _clipboard, _phoneScreen.Open, _laptopBrightness,
+            _headphoneHandoff);
         _flyout = new FlyoutWindow { DataContext = _viewModel };
         _desktop = new MainWindow { DataContext = _viewModel };
         MainWindow = _desktop;

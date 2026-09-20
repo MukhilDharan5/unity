@@ -36,6 +36,12 @@ data class BrightnessState(
 )
 
 @Serializable
+data class AudioOutputState(
+    val deviceName: String,
+    val canRelease: Boolean
+)
+
+@Serializable
 data class CellularState(
     val isUsingCellularData: Boolean,
     val network: String,
@@ -63,6 +69,7 @@ data class PhoneSnapshot(
     val dnd: DndState?,
     val sound: String?,
     val brightness: BrightnessState? = null,
+    val audioOutput: AudioOutputState? = null,
     val version: Int = 1,
     val type: String = "snapshot"
 )
@@ -127,5 +134,6 @@ sealed interface IncomingMessage {
     data class PcMediaUpdate(val state: MediaState?) : IncomingMessage
     data class BrightnessCommand(val level: Int?, val adaptive: Boolean?) : IncomingMessage
     data class DndRuleCommand(val active: Boolean) : IncomingMessage
+    data object HeadphoneHandoff : IncomingMessage
     data class ClipboardUpdate(val content: ClipboardContent) : IncomingMessage
 }

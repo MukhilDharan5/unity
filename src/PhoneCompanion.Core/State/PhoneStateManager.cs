@@ -102,7 +102,8 @@ public sealed class PhoneStateManager(IPhoneMessageCodec codec) : IAsyncDisposab
                 DndUpdate m => _current with { Dnd = m.State },
                 SoundModeUpdate m => _current with { Sound = m.State },
                 StateSnapshot m => _current with { Battery = m.Battery, Media = m.Media,
-                    Cellular = m.Cellular, Dnd = m.Dnd, Sound = m.Sound, Brightness = m.Brightness },
+                    Cellular = m.Cellular, Dnd = m.Dnd, Sound = m.Sound, Brightness = m.Brightness,
+                    AudioOutput = m.AudioOutput },
                 _ => _current // Incoming commands never mutate state or execute Windows actions.
             };
             if (next == _current) return;
@@ -205,6 +206,25 @@ public sealed class PhoneStateManager(IPhoneMessageCodec codec) : IAsyncDisposab
             }
             if (transport is null) return CommandResult.Unavailable;
             return await SendMessageAsync(transport, new PhoneBrightnessCommandMessage(level, adaptive), cancellationToken)
+                .ConfigureAwait(false);
+        }
+        finally { _operations.Release(); }
+    }
+    public async Task<CommandResult> RequestHeadphoneHandoffAsync(CancellationToken cancellationToken = default)
+    {
+        if (!await _operations.WaitAsync(0, cancellationToken).ConfigureAwait(false)) return CommandResult.Unavailable;
+        try
+        {
+            IPhoneTransport? transport;
+            lock (_sync)
+            {
+                if (_disposed || _current.Connection != ConnectionState.Connected ||
+                    _current.Transport == TransportKind.Mock || _current.AudioOutput is null)
+                    return CommandResult.Unavailable;
+                transport = _transport;
+            }
+            if (transport is null) return CommandResult.Unavailable;
+            return await SendMessageAsync(transport, new HeadphoneHandoffCommandMessage(), cancellationToken)
                 .ConfigureAwait(false);
         }
         finally { _operations.Release(); }

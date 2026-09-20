@@ -181,6 +181,19 @@
                     <TextBlock Grid.Column="2" Text="{Binding Sound}" Foreground="{DynamicResource SecondaryText}"
                                AutomationProperties.Name="Phone sound mode" AutomationProperties.LiveSetting="Polite" />
                 </Grid>
+                <StackPanel Visibility="{Binding HasAudioOutput, Converter={StaticResource BooleanToVisibility}}">
+                    <Border Height="1" Background="{DynamicResource Border}" Margin="0,14,0,14" />
+                    <Grid Margin="1,0,1,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <TextBlock Text="&#xE7F5;" Style="{StaticResource Glyph}" FontSize="16" HorizontalAlignment="Left" />
+                        <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                            <TextBlock Text="{Binding HeadphoneName}" TextTrimming="CharacterEllipsis" ToolTip="{Binding HeadphoneName}" />
+                            <TextBlock Text="{Binding HeadphoneHandoffDetail}" Foreground="{DynamicResource SecondaryText}" FontSize="9" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button Grid.Column="2" Style="{StaticResource TogglePill}" Content="Move"
+                                Command="{Binding MoveHeadphones}" AutomationProperties.Name="Move Bluetooth headphones to laptop" />
+                    </Grid>
+                </StackPanel>
                 <Border Height="1" Background="{DynamicResource Border}" Margin="0,14,0,14" />
                 <Grid Margin="1,0,1,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>

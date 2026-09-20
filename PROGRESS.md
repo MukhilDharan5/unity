@@ -233,8 +233,18 @@ Implemented the safe provider foundation while leaving the major choice open. Ne
 
 `ADR-005-headphone-handoff.md` records four concrete paths and recommends public API plus an assisted fallback: on API 37+, a separately approved headset association can permit direct release; Android 12–16 opens the narrowest system flow for user action. Optional Shizuku/ADB providers remain isolated future choices and accessibility automation is not recommended. Minimal verification only: Android `:app:compileDebugKotlin --offline --no-daemon` passed. Physical A2DP callbacks and labels remain untested.
 
+### 20 September 2026 — Stage 13 headphone handoff MVP completed (A + C)
+
+The user selected the public API/assisted path plus the optional ADB accelerator and explicitly excluded Shizuku. The optional authenticated v1 `audioOutput` snapshot member now carries only a bounded device label and direct-release availability; Bluetooth addresses stay on Android. Windows exposes **Move to laptop** in the full dashboard and flyout and sends the explicit authenticated `headphone_handoff` command.
+
+Android API 37+ can show a system Companion Device Manager consent flow for the currently connected headset. Only an associated headset is marked ready for one-tap release, and the runtime-gated public `BluetoothDevice.disconnect()` call is made only after that check. Older phones, unassociated devices and failed direct releases post a user-action notification into Android Bluetooth settings. Windows opens its Bluetooth settings for the final device selection.
+
+The isolated `HeadphoneHandoffAssistant` optionally detects `adb.exe` from `UNITY_CONNECT_ADB`, packaged/common Android SDK/scrcpy locations or `PATH`. It runs only with exactly one authorized device and only starts Android's public Bluetooth settings action. It does not issue an undocumented per-device disconnect, carry companion traffic or replace BLE/LAN. Shizuku and accessibility automation are absent.
+
+Minimal verification per the MVP instruction: the focused Windows Release project build passed with 0 warnings/errors, and Android `:app:compileDebugKotlin --offline --no-daemon` passed with one existing deprecated telephony constant warning. The first solution-level build returned failure without diagnostics, so the focused Windows application build was used. Physical headset transfer, Companion Device association, notification behavior and ADB discovery remain deferred.
+
 ## Next concrete resume action
 
-Stage 13's observation/provider foundation is complete. A direct decision is now required for ADR-005 before adding the cross-device state/command and transfer action. The recommended MVP is public API plus assisted fallback; Shizuku/ADB remain optional future providers and accessibility automation remains excluded.
+Stage 13 is implemented at MVP scope with public release, assisted fallback and optional ADB settings acceleration; Shizuku remains excluded. The next planned coding stage is Stage 14 phone internet/tethering assistance. Preserve the rule that local-only hotspot is not presented as internet tethering and use only supported, user-visible platform flows.
 
 Do not repeat Stage 0 or migrate TLS/WinUI without a new explicit decision. Preserve the Windows UI and Android root build/helper edits. The user authorized the repository snapshot and GitHub push recorded above.

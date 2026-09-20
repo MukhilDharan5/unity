@@ -9,6 +9,7 @@ using PhoneCompanion.Core.Models;
 using PhoneCompanion.Core.State;
 using PhoneCompanion.Windows.Brightness;
 using PhoneCompanion.Windows.Clipboard;
+using PhoneCompanion.Windows.Connection;
 
 namespace PhoneCompanion.Windows.ViewModels;
 
@@ -19,6 +20,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     private readonly ClipboardSyncCoordinator? _clipboard;
     private readonly Func<string?>? _openPhone;
     private readonly LaptopAdaptiveBrightnessController? _laptopBrightness;
+    private readonly HeadphoneHandoffAssistant? _headphoneHandoff;
     private PhoneState _state;
     private bool _busy;
     private bool _disposed;
@@ -26,10 +28,11 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     private int? _pendingPhoneBrightness;
     private CancellationTokenSource? _brightnessDebounce;
     public PhoneViewModel(PhoneStateManager manager, Dispatcher dispatcher, ClipboardSyncCoordinator? clipboard = null,
-        Func<string?>? openPhone = null, LaptopAdaptiveBrightnessController? laptopBrightness = null)
+        Func<string?>? openPhone = null, LaptopAdaptiveBrightnessController? laptopBrightness = null,
+        HeadphoneHandoffAssistant? headphoneHandoff = null)
     {
         _manager = manager; _dispatcher = dispatcher; _clipboard = clipboard; _openPhone = openPhone;
-        _laptopBrightness = laptopBrightness; _state = manager.Current;
+        _laptopBrightness = laptopBrightness; _headphoneHandoff = headphoneHandoff; _state = manager.Current;
         Previous = new AsyncCommand(() => SendAsync(MediaCommand.PreviousTrack), () => CanControl && _state.Media?.Capabilities.PreviousTrack == true);
         PlayPause = new AsyncCommand(() => SendAsync(MediaCommand.PlayPause), () => CanControl && _state.Media?.Capabilities.PlayPause == true);
         Next = new AsyncCommand(() => SendAsync(MediaCommand.NextTrack), () => CanControl && _state.Media?.Capabilities.NextTrack == true);
@@ -38,6 +41,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         OpenPhone = new AsyncCommand(OpenPhoneAsync, () => !_busy && _openPhone is not null);
         TogglePhoneAdaptive = new AsyncCommand(TogglePhoneAdaptiveAsync, () => !_busy && CanControlPhoneBrightness);
         ToggleLaptopAdaptive = new AsyncCommand(ToggleLaptopAdaptiveAsync, () => !_busy && CanUseLaptopAdaptive);
+        MoveHeadphones = new AsyncCommand(MoveHeadphonesAsync, () => !_busy && CanMoveHeadphones);
         manager.StateChanged += OnStateChanged;
         if (_laptopBrightness is not null) _laptopBrightness.Changed += OnLaptopBrightnessChanged;
         if (_clipboard is not null)
@@ -55,6 +59,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     public AsyncCommand OpenPhone { get; }
     public AsyncCommand TogglePhoneAdaptive { get; }
     public AsyncCommand ToggleLaptopAdaptive { get; }
+    public AsyncCommand MoveHeadphones { get; }
     public bool IsConnected => _state.Connection == ConnectionState.Connected;
     public bool IsDemo => _state.IsDemo;
     public bool HasMedia => _state.Media?.IsPlaying == true;
@@ -79,6 +84,13 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     public int BatteryLevel => _state.Battery?.Level ?? 0;
     public bool HasBattery => _state.Battery is not null;
     public bool HasPhoneBrightness => _state.Brightness is not null;
+    public bool HasAudioOutput => _state.AudioOutput is not null;
+    public bool CanMoveHeadphones => IsConnected && !IsDemo && _state.AudioOutput is not null;
+    public string HeadphoneName => _state.AudioOutput?.DeviceName ?? "Bluetooth headphones";
+    public string HeadphoneActionText => $"Move {HeadphoneName} to laptop";
+    public string HeadphoneHandoffDetail => _state.AudioOutput?.CanRelease == true
+        ? "One-tap release is ready on your phone"
+        : "Your phone will guide the disconnect step";
     public bool CanControlPhoneBrightness => IsConnected && !IsDemo && _state.Brightness?.CanControl == true;
     public double PhoneBrightnessLevel
     {
@@ -269,6 +281,37 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         Refresh();
         return Task.CompletedTask;
     }
+    private async Task MoveHeadphonesAsync()
+    {
+        var audio = _state.AudioOutput;
+        if (audio is null || _headphoneHandoff is null) return;
+        _busy = true; _commandNotice = null; Refresh();
+        try
+        {
+            var result = await _manager.RequestHeadphoneHandoffAsync();
+            if (result == CommandResult.Failed)
+            {
+                _commandNotice = "Couldn't ask your phone to release the headphones.";
+                return;
+            }
+            if (result == CommandResult.Unavailable)
+            {
+                _commandNotice = "Headphone handoff isn't available right now.";
+                return;
+            }
+
+            var openedPhoneSettings = !audio.CanRelease &&
+                await Task.Run(_headphoneHandoff.TryOpenPhoneBluetoothSettings);
+            var openedWindowsSettings = _headphoneHandoff.OpenWindowsBluetoothSettings();
+            _commandNotice = audio.CanRelease
+                ? $"Release requested. Select {audio.DeviceName} in Windows Bluetooth settings."
+                : openedPhoneSettings
+                    ? $"Phone Bluetooth settings opened. Disconnect {audio.DeviceName}, then select it in Windows."
+                    : $"Finish disconnecting {audio.DeviceName} on your phone, then select it in Windows Bluetooth settings.";
+            if (!openedWindowsSettings) _commandNotice += " Open Windows Bluetooth settings manually.";
+        }
+        finally { _busy = false; Refresh(); }
+    }
     private void OnLaptopBrightnessChanged()
     {
         if (_disposed || _dispatcher.HasShutdownStarted) return;
@@ -289,7 +332,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
         Previous.Refresh(); PlayPause.Refresh(); Next.Refresh(); ToggleDndRule.Refresh(); ToggleClipboard.Refresh();
         OpenPhone.Refresh(); TogglePhoneAdaptive.Refresh();
-        ToggleLaptopAdaptive.Refresh();
+        ToggleLaptopAdaptive.Refresh(); MoveHeadphones.Refresh();
     }
     public void Dispose()
     {

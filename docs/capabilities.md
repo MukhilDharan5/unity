@@ -17,8 +17,8 @@ Status: observed implementation, 17 September 2026. “Implemented” means code
 | OEM laptop profile | Absent | None | Requires provider discovery and hardware research |
 | Brightness/ambient/pocket | Android -> Windows state; Windows -> Android control | Special Android settings access for control; light/proximity sensor availability | Device filtering, pocket classification and OEM brightness behavior need validation |
 | Laptop adaptive brightness | Phone ambient light -> Windows integrated display, opt-in per app session | Valid non-demo phone state plus `WmiMonitorBrightness` support | Laptop-panel comfort/power validation; external DDC/CI monitors are not supported |
-| Bluetooth audio observation | Local Android UI | Existing `BLUETOOTH_CONNECT` access and public A2DP callbacks | Physical-device validation; only the first connected output is shown |
-| Headphone handoff | Provider decision pending | Public API 37 association, assisted fallback, or optional privileged provider | No cross-device state/command or disconnect action until ADR-005 is decided |
+| Bluetooth audio observation | Android -> Windows optional snapshot state | Existing `BLUETOOTH_CONNECT` access and public A2DP callbacks | Physical-device validation; only the first connected output is shown |
+| Headphone handoff | Authenticated request; API 37+ public release or guided Bluetooth-settings flow | Explicit Companion Device association for direct release; optional authorized ADB only accelerates opening settings | Windows still needs user selection; Android 12–16 and unassociated headsets require a phone action; Shizuku excluded |
 | Hotspot/audio streaming | Absent | None | Public/OEM/optional privileged feasibility unresolved |
 | PC activity/lock/unlock | Absent | None | Privacy policy; lock safeguards; separate unlock security project |
 
