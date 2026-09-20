@@ -3,13 +3,19 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace PhoneCompanion.Windows.Connection;
 
-/// <summary>Optional ADB assistance for the user-visible fallback. ADB is never a companion transport.</summary>
-public sealed class HeadphoneHandoffAssistant
+/// <summary>Optional ADB assistance for user-visible Android settings. ADB is never a companion transport.</summary>
+public sealed class AndroidSettingsAssistant
 {
-    public bool TryOpenPhoneBluetoothSettings()
+    public bool TryOpenPhoneBluetoothSettings() => TryOpenPhoneSettings("android.settings.BLUETOOTH_SETTINGS");
+
+    public bool TryOpenPhoneHotspotSettings() => TryOpenPhoneSettings(
+        "android.settings.TETHER_SETTINGS", "android.settings.WIRELESS_SETTINGS");
+
+    private static bool TryOpenPhoneSettings(params string[] actions)
     {
         var adb = FindAdb();
         if (adb is null) return false;
@@ -25,8 +31,15 @@ public sealed class HeadphoneHandoffAssistant
                 .Distinct(StringComparer.Ordinal)
                 .ToArray();
             if (authorized.Length != 1) return false;
-            return Run(adb, "-s", authorized[0], "shell", "am", "start", "-a",
-                "android.settings.BLUETOOTH_SETTINGS").ExitCode == 0;
+            foreach (var action in actions)
+            {
+                var launched = Run(adb, "-s", authorized[0], "shell", "am", "start", "-a", action);
+                if (launched.ExitCode == 0 &&
+                    !launched.Output.Contains("Error:", StringComparison.OrdinalIgnoreCase) &&
+                    !launched.Output.Contains("Exception", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
         }
         catch { return false; }
     }
@@ -41,6 +54,16 @@ public sealed class HeadphoneHandoffAssistant
         catch { return false; }
     }
 
+    public bool OpenWindowsWifiSettings()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("ms-settings:network-wifi") { UseShellExecute = true });
+            return true;
+        }
+        catch { return false; }
+    }
+
     private static (int ExitCode, string Output) Run(string executable, params string[] arguments)
     {
         var start = new ProcessStartInfo
@@ -49,16 +72,20 @@ public sealed class HeadphoneHandoffAssistant
             WorkingDirectory = Path.GetDirectoryName(executable) ?? AppContext.BaseDirectory,
             UseShellExecute = false,
             CreateNoWindow = true,
-            RedirectStandardOutput = true
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
         };
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         using var process = Process.Start(start) ?? throw new InvalidOperationException("ADB could not start.");
+        var output = process.StandardOutput.ReadToEndAsync();
+        var error = process.StandardError.ReadToEndAsync();
         if (!process.WaitForExit(3500))
         {
             try { process.Kill(entireProcessTree: true); } catch { }
             return (-1, string.Empty);
         }
-        return (process.ExitCode, process.StandardOutput.ReadToEnd());
+        Task.WaitAll(new Task[] { output, error }, 1000);
+        return (process.ExitCode, output.GetAwaiter().GetResult() + error.GetAwaiter().GetResult());
     }
 
     private static string? FindAdb()

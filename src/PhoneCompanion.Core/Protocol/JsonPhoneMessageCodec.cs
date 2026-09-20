@@ -61,6 +61,9 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
             case HeadphoneHandoffCommandMessage:
                 root["type"] = "headphone_handoff";
                 break;
+            case HotspotRequestCommandMessage:
+                root["type"] = "hotspot_request";
+                break;
             case ClipboardUpdate m:
                 root["type"] = "clipboard";
                 root["updateId"] = m.Content.UpdateId.ToString("D");
@@ -103,6 +106,7 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
                 "brightness_command" => ReadBrightnessCommand(r),
                 "dnd_rule_command" => new DndRuleCommandMessage(Bool(r, "active")),
                 "headphone_handoff" => new HeadphoneHandoffCommandMessage(),
+                "hotspot_request" => new HotspotRequestCommandMessage(),
                 "clipboard" => new ClipboardUpdate(ReadClipboard(r)),
                 _ => null
             };

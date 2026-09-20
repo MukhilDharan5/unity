@@ -19,7 +19,8 @@ Status: observed implementation, 17 September 2026. “Implemented” means code
 | Laptop adaptive brightness | Phone ambient light -> Windows integrated display, opt-in per app session | Valid non-demo phone state plus `WmiMonitorBrightness` support | Laptop-panel comfort/power validation; external DDC/CI monitors are not supported |
 | Bluetooth audio observation | Android -> Windows optional snapshot state | Existing `BLUETOOTH_CONNECT` access and public A2DP callbacks | Physical-device validation; only the first connected output is shown |
 | Headphone handoff | Authenticated request; API 37+ public release or guided Bluetooth-settings flow | Explicit Companion Device association for direct release; optional authorized ADB only accelerates opening settings | Windows still needs user selection; Android 12–16 and unassociated headsets require a phone action; Shizuku excluded |
-| Hotspot/audio streaming | Absent | None | Public/OEM/optional privileged feasibility unresolved |
+| Phone internet | Explicit Windows request -> Android user-assisted tether settings; Windows saved-network Wi-Fi flow | Real connected peer plus Windows reporting no internet; optional authorized ADB only opens settings | No silent toggle, SSID/password exchange or `LocalOnlyHotspot`; OEM/settings/runtime validation remains |
+| Audio streaming | Absent | None | Public capture/DRM/call constraints and transport performance remain unresolved |
 | PC activity/lock/unlock | Absent | None | Privacy policy; lock safeguards; separate unlock security project |
 
 Nullable data is distinct from unsupported functionality. Battery unavailable is not 0%; no media session and missing notification access currently share `media:null`. Missing phone-state permission produces unknown cellular fields, not a known lack of cellular hardware.
@@ -30,4 +31,4 @@ Treat these as separate facts: platform supports a feature; permission is grante
 
 Advertise feature support at authenticated session establishment and update availability after permission changes. Do not advertise unimplemented features or infer support from brand/model, Bluetooth name, package name or ADB availability. The exact wire addition, version policy and downgrade behavior require approval through [ADR-002](decisions/ADR-002-protocol-format.md).
 
-Future identifiers may cover `MEDIA_CONTROL`, `DND_SYNC`, `CLIPBOARD_SYNC`, `BRIGHTNESS_CONTROL`, `AMBIENT_LIGHT`, `HOTSPOT_CONTROL`, `BT_DEVICE_DISCONNECT`, `SCREEN_MIRRORING` and `AUDIO_STREAMING`. They are roadmap names, not v1 messages or active capabilities. Enhanced/privileged providers must remain optional and isolated.
+Future identifiers may cover `MEDIA_CONTROL`, `DND_SYNC`, `CLIPBOARD_SYNC`, `BRIGHTNESS_CONTROL`, `AMBIENT_LIGHT`, `HOTSPOT_CONTROL`, `BT_DEVICE_DISCONNECT`, `SCREEN_MIRRORING` and `AUDIO_STREAMING`. They are capability-model names rather than a negotiated v1 envelope; the live hotspot workflow currently uses the explicit `hotspot_request` command. Enhanced providers must remain optional and isolated.

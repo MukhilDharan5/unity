@@ -29,7 +29,8 @@ public partial class App : Application
     private ClipboardSyncCoordinator? _clipboard;
     private WindowsMediaController? _windowsMedia;
     private PhoneScreenLauncher? _phoneScreen;
-    private HeadphoneHandoffAssistant? _headphoneHandoff;
+    private AndroidSettingsAssistant? _androidSettings;
+    private InternetConnectivityMonitor? _internetConnectivity;
     private LaptopAdaptiveBrightnessController? _laptopBrightness;
     private PairingWindow? _pairing;
     private readonly IdentityAndTrustStore _connectionStore = new();
@@ -56,11 +57,12 @@ public partial class App : Application
         _windowsMedia = await WindowsMediaController.CreateAsync();
         _windowsMedia.StateChanged += OnWindowsMediaChanged;
         _phoneScreen = new PhoneScreenLauncher();
-        _headphoneHandoff = new HeadphoneHandoffAssistant();
+        _androidSettings = new AndroidSettingsAssistant();
+        _internetConnectivity = new InternetConnectivityMonitor();
         _laptopBrightness = await LaptopAdaptiveBrightnessController.CreateAsync();
         _clipboard = new ClipboardSyncCoordinator(_manager, new WindowsClipboardService(Dispatcher), Dispatcher);
         _viewModel = new PhoneViewModel(_manager, Dispatcher, _clipboard, _phoneScreen.Open, _laptopBrightness,
-            _headphoneHandoff);
+            _androidSettings, _internetConnectivity);
         _flyout = new FlyoutWindow { DataContext = _viewModel };
         _desktop = new MainWindow { DataContext = _viewModel };
         MainWindow = _desktop;
@@ -219,6 +221,7 @@ public partial class App : Application
         _tray?.Dispose(); _tray = null;
         _theme?.Dispose(); _theme = null;
         _viewModel?.Dispose();
+        _internetConnectivity?.Dispose(); _internetConnectivity = null;
         if (_laptopBrightness is not null) { await _laptopBrightness.DisposeAsync(); _laptopBrightness = null; }
         if (_manager is not null) _manager.PcMediaCommandReceived -= OnPcMediaCommandReceived;
         if (_windowsMedia is not null) { _windowsMedia.StateChanged -= OnWindowsMediaChanged; _windowsMedia.Dispose(); _windowsMedia = null; }
@@ -236,6 +239,7 @@ public partial class App : Application
         _tray?.Dispose();
         _theme?.Dispose();
         _viewModel?.Dispose();
+        _internetConnectivity?.Dispose(); _internetConnectivity = null;
         _laptopBrightness?.Dispose(); _laptopBrightness = null;
         _clipboard?.Dispose();
         if (_manager is not null) _manager.StateChanged -= OnPhoneStateChanged;

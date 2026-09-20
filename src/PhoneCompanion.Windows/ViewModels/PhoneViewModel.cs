@@ -20,7 +20,8 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     private readonly ClipboardSyncCoordinator? _clipboard;
     private readonly Func<string?>? _openPhone;
     private readonly LaptopAdaptiveBrightnessController? _laptopBrightness;
-    private readonly HeadphoneHandoffAssistant? _headphoneHandoff;
+    private readonly AndroidSettingsAssistant? _androidSettings;
+    private readonly InternetConnectivityMonitor? _internetConnectivity;
     private PhoneState _state;
     private bool _busy;
     private bool _disposed;
@@ -29,10 +30,11 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     private CancellationTokenSource? _brightnessDebounce;
     public PhoneViewModel(PhoneStateManager manager, Dispatcher dispatcher, ClipboardSyncCoordinator? clipboard = null,
         Func<string?>? openPhone = null, LaptopAdaptiveBrightnessController? laptopBrightness = null,
-        HeadphoneHandoffAssistant? headphoneHandoff = null)
+        AndroidSettingsAssistant? androidSettings = null, InternetConnectivityMonitor? internetConnectivity = null)
     {
         _manager = manager; _dispatcher = dispatcher; _clipboard = clipboard; _openPhone = openPhone;
-        _laptopBrightness = laptopBrightness; _headphoneHandoff = headphoneHandoff; _state = manager.Current;
+        _laptopBrightness = laptopBrightness; _androidSettings = androidSettings;
+        _internetConnectivity = internetConnectivity; _state = manager.Current;
         Previous = new AsyncCommand(() => SendAsync(MediaCommand.PreviousTrack), () => CanControl && _state.Media?.Capabilities.PreviousTrack == true);
         PlayPause = new AsyncCommand(() => SendAsync(MediaCommand.PlayPause), () => CanControl && _state.Media?.Capabilities.PlayPause == true);
         Next = new AsyncCommand(() => SendAsync(MediaCommand.NextTrack), () => CanControl && _state.Media?.Capabilities.NextTrack == true);
@@ -42,8 +44,10 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         TogglePhoneAdaptive = new AsyncCommand(TogglePhoneAdaptiveAsync, () => !_busy && CanControlPhoneBrightness);
         ToggleLaptopAdaptive = new AsyncCommand(ToggleLaptopAdaptiveAsync, () => !_busy && CanUseLaptopAdaptive);
         MoveHeadphones = new AsyncCommand(MoveHeadphonesAsync, () => !_busy && CanMoveHeadphones);
+        UsePhoneInternet = new AsyncCommand(UsePhoneInternetAsync, () => !_busy && CanUsePhoneInternet);
         manager.StateChanged += OnStateChanged;
         if (_laptopBrightness is not null) _laptopBrightness.Changed += OnLaptopBrightnessChanged;
+        if (_internetConnectivity is not null) _internetConnectivity.Changed += OnInternetConnectivityChanged;
         if (_clipboard is not null)
         {
             _clipboard.Changed += OnClipboardChanged;
@@ -60,6 +64,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     public AsyncCommand TogglePhoneAdaptive { get; }
     public AsyncCommand ToggleLaptopAdaptive { get; }
     public AsyncCommand MoveHeadphones { get; }
+    public AsyncCommand UsePhoneInternet { get; }
     public bool IsConnected => _state.Connection == ConnectionState.Connected;
     public bool IsDemo => _state.IsDemo;
     public bool HasMedia => _state.Media?.IsPlaying == true;
@@ -91,6 +96,8 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     public string HeadphoneHandoffDetail => _state.AudioOutput?.CanRelease == true
         ? "One-tap release is ready on your phone"
         : "Your phone will guide the disconnect step";
+    public bool CanUsePhoneInternet => IsConnected && !IsDemo && _internetConnectivity?.HasInternet == false;
+    public string PhoneInternetDetail => "Laptop internet unavailable · Use Android tethering";
     public bool CanControlPhoneBrightness => IsConnected && !IsDemo && _state.Brightness?.CanControl == true;
     public double PhoneBrightnessLevel
     {
@@ -284,7 +291,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     private async Task MoveHeadphonesAsync()
     {
         var audio = _state.AudioOutput;
-        if (audio is null || _headphoneHandoff is null) return;
+        if (audio is null || _androidSettings is null) return;
         _busy = true; _commandNotice = null; Refresh();
         try
         {
@@ -301,8 +308,8 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
             }
 
             var openedPhoneSettings = !audio.CanRelease &&
-                await Task.Run(_headphoneHandoff.TryOpenPhoneBluetoothSettings);
-            var openedWindowsSettings = _headphoneHandoff.OpenWindowsBluetoothSettings();
+                await Task.Run(_androidSettings.TryOpenPhoneBluetoothSettings);
+            var openedWindowsSettings = _androidSettings.OpenWindowsBluetoothSettings();
             _commandNotice = audio.CanRelease
                 ? $"Release requested. Select {audio.DeviceName} in Windows Bluetooth settings."
                 : openedPhoneSettings
@@ -312,7 +319,39 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         }
         finally { _busy = false; Refresh(); }
     }
+    private async Task UsePhoneInternetAsync()
+    {
+        if (_androidSettings is null) return;
+        _busy = true; _commandNotice = null; Refresh();
+        try
+        {
+            var result = await _manager.RequestHotspotAsync();
+            if (result == CommandResult.Failed)
+            {
+                _commandNotice = "Couldn't ask your phone to open hotspot settings.";
+                return;
+            }
+            if (result == CommandResult.Unavailable)
+            {
+                _commandNotice = "Phone internet isn't available right now.";
+                return;
+            }
+
+            var openedPhoneSettings = await Task.Run(_androidSettings.TryOpenPhoneHotspotSettings);
+            var openedWindowsSettings = _androidSettings.OpenWindowsWifiSettings();
+            _commandNotice = openedPhoneSettings
+                ? "Turn on internet tethering on your phone. Windows will use a saved hotspot automatically."
+                : "Use the notification on your phone to turn on tethering. Windows will use a saved hotspot automatically.";
+            if (!openedWindowsSettings) _commandNotice += " Open Windows Wi-Fi settings manually if needed.";
+        }
+        finally { _busy = false; Refresh(); }
+    }
     private void OnLaptopBrightnessChanged()
+    {
+        if (_disposed || _dispatcher.HasShutdownStarted) return;
+        _dispatcher.BeginInvoke(Refresh);
+    }
+    private void OnInternetConnectivityChanged()
     {
         if (_disposed || _dispatcher.HasShutdownStarted) return;
         _dispatcher.BeginInvoke(Refresh);
@@ -332,7 +371,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
         Previous.Refresh(); PlayPause.Refresh(); Next.Refresh(); ToggleDndRule.Refresh(); ToggleClipboard.Refresh();
         OpenPhone.Refresh(); TogglePhoneAdaptive.Refresh();
-        ToggleLaptopAdaptive.Refresh(); MoveHeadphones.Refresh();
+        ToggleLaptopAdaptive.Refresh(); MoveHeadphones.Refresh(); UsePhoneInternet.Refresh();
     }
     public void Dispose()
     {
@@ -340,6 +379,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         _brightnessDebounce?.Cancel(); _brightnessDebounce?.Dispose(); _brightnessDebounce = null;
         _manager.StateChanged -= OnStateChanged;
         if (_laptopBrightness is not null) _laptopBrightness.Changed -= OnLaptopBrightnessChanged;
+        if (_internetConnectivity is not null) _internetConnectivity.Changed -= OnInternetConnectivityChanged;
         if (_clipboard is not null)
         {
             _clipboard.Changed -= OnClipboardChanged;

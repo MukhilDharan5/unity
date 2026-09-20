@@ -18,6 +18,7 @@ public sealed record PcMediaCommandMessage(MediaCommand Command) : PhoneMessage;
 public sealed record PhoneBrightnessCommandMessage(int? Level, bool? Adaptive) : PhoneMessage;
 public sealed record DndRuleCommandMessage(bool Active) : PhoneMessage;
 public sealed record HeadphoneHandoffCommandMessage : PhoneMessage;
+public sealed record HotspotRequestCommandMessage : PhoneMessage;
 public sealed record ClipboardUpdate(ClipboardContent Content) : PhoneMessage;
 
 public enum DecodeError { None, Empty, TooLarge, Malformed, UnsupportedVersion, UnknownType, InvalidPayload }

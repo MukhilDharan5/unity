@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.unity.connect.android.state.HotspotSettings
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -169,6 +170,7 @@ private fun PairingContent(uiState: UiState, viewModel: AppViewModel) {
 
 @Composable
 private fun CompanionControls(uiState: UiState, viewModel: AppViewModel, associateHeadphones: () -> Unit) {
+    val context = LocalContext.current
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text("Audio output", style = MaterialTheme.typography.titleMedium)
@@ -185,6 +187,20 @@ private fun CompanionControls(uiState: UiState, viewModel: AppViewModel, associa
             if (Build.VERSION.SDK_INT >= 37 && uiState.bluetoothAudioName != null &&
                 !uiState.bluetoothAudioCanRelease) {
                 Button(onClick = associateHeadphones) { Text("Enable one-tap handoff") }
+            }
+        }
+    }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Text("Phone internet", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Turn on Android internet tethering when your laptop asks. A local-only hotspot is not used.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
+            Button(onClick = { context.startActivity(HotspotSettings.intent(context)) }) {
+                Text("Open tethering settings")
             }
         }
     }

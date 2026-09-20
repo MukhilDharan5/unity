@@ -88,6 +88,9 @@
                         <TextBlock x:Name="PageSubtitle" Text="Phone status and connected experiences." Style="{StaticResource Caption}" Margin="0,6,0,0" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="Use phone internet" Style="{StaticResource PrimaryButton}" MinWidth="138" Margin="0,0,10,0"
+                                Command="{Binding UsePhoneInternet}" Visibility="{Binding CanUsePhoneInternet, Converter={StaticResource VisibleIf}}"
+                                ToolTip="{Binding PhoneInternetDetail}" AutomationProperties.Name="Use phone internet" />
                         <Button Content="{Binding HeadphoneActionText}" Style="{StaticResource ActionButton}" MinWidth="150" Margin="0,0,10,0"
                                 Command="{Binding MoveHeadphones}" Visibility="{Binding HasAudioOutput, Converter={StaticResource VisibleIf}}"
                                 AutomationProperties.Name="Move Bluetooth headphones to laptop" />

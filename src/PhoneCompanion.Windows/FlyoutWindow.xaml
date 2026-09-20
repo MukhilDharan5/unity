@@ -113,6 +113,10 @@
                 </Grid>
                 <TextBlock Text="{Binding CellularText}" Foreground="{DynamicResource SecondaryText}"
                            FontSize="12" Margin="0,13,0,0" />
+                <Button Style="{StaticResource PrimaryButton}" Content="Use phone internet" Height="34" MinHeight="0"
+                        Padding="12,7" Margin="0,12,0,0" Command="{Binding UsePhoneInternet}"
+                        Visibility="{Binding CanUsePhoneInternet, Converter={StaticResource BooleanToVisibility}}"
+                        ToolTip="{Binding PhoneInternetDetail}" AutomationProperties.Name="Use phone internet" />
 
                 <!-- Keep the flyout compact: the player exists only while the phone reports active playback. -->
                 <Border x:Name="MediaCard" Visibility="{Binding HasMedia, Converter={StaticResource BooleanToVisibility}}"

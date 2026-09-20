@@ -27,6 +27,7 @@ import com.unity.connect.android.state.StateCollector
 import com.unity.connect.android.state.BrightnessController
 import com.unity.connect.android.state.BluetoothAudioMonitor
 import com.unity.connect.android.state.HeadphoneReleaseResult
+import com.unity.connect.android.state.HotspotSettings
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.*
@@ -422,6 +423,7 @@ class ConnectionService : Service() {
             }
             is IncomingMessage.DndRuleCommand -> dnd.setCompanionRuleActive(message.active)
             IncomingMessage.HeadphoneHandoff -> handleHeadphoneHandoff()
+            IncomingMessage.HotspotRequest -> handleHotspotRequest()
             is IncomingMessage.ClipboardUpdate -> if (clipboard.enabled) clipboard.applyIncoming(message.content)
             null -> Unit
         }
@@ -453,6 +455,19 @@ class ConnectionService : Service() {
             .setAutoCancel(true)
             .build()
         NotificationManagerCompat.from(this).notify(2, notification)
+    }
+    private fun handleHotspotRequest() {
+        state.update { it.copy(featureNotice = "Tap the phone-internet notification to review hotspot settings.") }
+        val pending = PendingIntent.getActivity(this, 3, HotspotSettings.intent(this),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val notification = NotificationCompat.Builder(this, "unity_service")
+            .setContentTitle("Use phone internet")
+            .setContentText("Tap to turn on internet tethering in Android settings.")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentIntent(pending)
+            .setAutoCancel(true)
+            .build()
+        NotificationManagerCompat.from(this).notify(3, notification)
     }
     private fun sendPcMediaCommand(command: String) {
         val media = state.value.pcMedia

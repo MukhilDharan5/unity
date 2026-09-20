@@ -30,6 +30,7 @@ internal object V1MessageValidator {
             "brightness_command" -> brightnessCommand(root)
             "dnd_rule_command" -> boolean(root, "active")
             "headphone_handoff" -> Unit
+            "hotspot_request" -> Unit
             "clipboard" -> clipboard(root)
             else -> throw IllegalArgumentException("Unknown application message")
         }
@@ -63,6 +64,7 @@ internal object V1MessageValidator {
         "brightness_command" -> brightnessCommand(root)
         "dnd_rule_command" -> IncomingMessage.DndRuleCommand(boolean(root, "active"))
         "headphone_handoff" -> IncomingMessage.HeadphoneHandoff
+        "hotspot_request" -> IncomingMessage.HotspotRequest
         "clipboard" -> IncomingMessage.ClipboardUpdate(clipboard(root))
         else -> null // Valid phone-state messages are not commands for Android.
     }

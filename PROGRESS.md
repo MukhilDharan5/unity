@@ -239,12 +239,22 @@ The user selected the public API/assisted path plus the optional ADB accelerator
 
 Android API 37+ can show a system Companion Device Manager consent flow for the currently connected headset. Only an associated headset is marked ready for one-tap release, and the runtime-gated public `BluetoothDevice.disconnect()` call is made only after that check. Older phones, unassociated devices and failed direct releases post a user-action notification into Android Bluetooth settings. Windows opens its Bluetooth settings for the final device selection.
 
-The isolated `HeadphoneHandoffAssistant` optionally detects `adb.exe` from `UNITY_CONNECT_ADB`, packaged/common Android SDK/scrcpy locations or `PATH`. It runs only with exactly one authorized device and only starts Android's public Bluetooth settings action. It does not issue an undocumented per-device disconnect, carry companion traffic or replace BLE/LAN. Shizuku and accessibility automation are absent.
+The isolated settings assistant optionally detects `adb.exe` from `UNITY_CONNECT_ADB`, packaged/common Android SDK/scrcpy locations or `PATH`. It runs only with exactly one authorized device and only starts Android's public Bluetooth settings action. It does not issue an undocumented per-device disconnect, carry companion traffic or replace BLE/LAN. Shizuku and accessibility automation are absent.
 
 Minimal verification per the MVP instruction: the focused Windows Release project build passed with 0 warnings/errors, and Android `:app:compileDebugKotlin --offline --no-daemon` passed with one existing deprecated telephony constant warning. The first solution-level build returned failure without diagnostics, so the focused Windows application build was used. Physical headset transfer, Companion Device association, notification behavior and ADB discovery remain deferred.
 
+### 20 September 2026 — Stage 14 phone internet MVP completed
+
+Windows now monitors its platform connectivity level and shows **Use phone internet** in the dashboard and flyout only when a real phone is connected and Windows does not report internet access. The click sends the authenticated fieldless `hotspot_request`, then opens Windows Wi-Fi settings so Windows can use its own saved hotspot profile or let the user select the phone network. Unity Connect never reads, stores or sends hotspot credentials.
+
+Android handles the request by posting a user-action notification into the closest system-owned tethering screen, with public wireless/general settings fallbacks. The Android companion also provides a visible **Open tethering settings** button. It does not silently toggle tethering and never treats `LocalOnlyHotspot` as internet access. No new Android permission or stored setting was added.
+
+The previous optional ADB helper is generalized as `AndroidSettingsAssistant`. With exactly one authorized device it can foreground tethering settings, falling back to wireless settings, but it does not call tethering services or carry companion traffic. No Shizuku, accessibility automation, Samsung routine dependency, SSID exchange or password exchange was added. ADR-006 records this workflow.
+
+Minimal verification per the MVP instruction: the focused Windows Release application build passed with 0 warnings/errors, and Android `:app:compileDebugKotlin --offline --no-daemon` passed. Physical tethering, notification delivery, OEM settings resolution, Windows connectivity detection, saved-profile reconnection and captive-portal behavior remain deferred.
+
 ## Next concrete resume action
 
-Stage 13 is implemented at MVP scope with public release, assisted fallback and optional ADB settings acceleration; Shizuku remains excluded. The next planned coding stage is Stage 14 phone internet/tethering assistance. Preserve the rule that local-only hotspot is not presented as internet tethering and use only supported, user-visible platform flows.
+Stage 14 is implemented at MVP scope with an explicit authenticated request and user-assisted system settings. The next planned coding stage is Stage 15 audio streaming. Start with a capability/feasibility spike and a narrow prototype; preserve explicit capture consent and do not claim DRM, call audio or low-latency support without evidence.
 
 Do not repeat Stage 0 or migrate TLS/WinUI without a new explicit decision. Preserve the Windows UI and Android root build/helper edits. The user authorized the repository snapshot and GitHub push recorded above.

@@ -229,6 +229,24 @@ public sealed class PhoneStateManager(IPhoneMessageCodec codec) : IAsyncDisposab
         }
         finally { _operations.Release(); }
     }
+    public async Task<CommandResult> RequestHotspotAsync(CancellationToken cancellationToken = default)
+    {
+        if (!await _operations.WaitAsync(0, cancellationToken).ConfigureAwait(false)) return CommandResult.Unavailable;
+        try
+        {
+            IPhoneTransport? transport;
+            lock (_sync)
+            {
+                if (_disposed || _current.Connection != ConnectionState.Connected || _current.Transport == TransportKind.Mock)
+                    return CommandResult.Unavailable;
+                transport = _transport;
+            }
+            if (transport is null) return CommandResult.Unavailable;
+            return await SendMessageAsync(transport, new HotspotRequestCommandMessage(), cancellationToken)
+                .ConfigureAwait(false);
+        }
+        finally { _operations.Release(); }
+    }
     private async Task<CommandResult> SendMessageAsync(IPhoneTransport transport, PhoneMessage message,
         CancellationToken cancellationToken)
     {

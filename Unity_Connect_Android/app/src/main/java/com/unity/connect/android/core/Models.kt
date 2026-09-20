@@ -135,5 +135,6 @@ sealed interface IncomingMessage {
     data class BrightnessCommand(val level: Int?, val adaptive: Boolean?) : IncomingMessage
     data class DndRuleCommand(val active: Boolean) : IncomingMessage
     data object HeadphoneHandoff : IncomingMessage
+    data object HotspotRequest : IncomingMessage
     data class ClipboardUpdate(val content: ClipboardContent) : IncomingMessage
 }

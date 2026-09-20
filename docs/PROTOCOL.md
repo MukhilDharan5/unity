@@ -149,6 +149,14 @@ Headphone handoff is an explicit command with no payload fields:
 
 Android accepts it only on the authenticated active session. A capable associated phone requests release through the public platform API. Otherwise Android posts a user-action notification that opens Bluetooth settings. Windows may also use an optional authorized ADB executable to foreground that same settings screen, but ADB is outside this protocol and never becomes a companion transport. Windows opens its own Bluetooth settings so the user can select the released headset.
 
+Phone-internet assistance is also an explicit command with no payload fields:
+
+```json
+{"version":1,"type":"hotspot_request"}
+```
+
+Windows sends it only from the visible **Use phone internet** action on an authenticated non-demo session. Android posts a user-action notification into the closest system-owned tethering/wireless settings screen; it does not silently toggle tethering and does not use `LocalOnlyHotspot`. Windows opens its Wi-Fi settings so an existing saved hotspot profile can reconnect or the user can choose the phone network. Optional ADB settings launch is local Windows behavior outside this message protocol.
+
 Clipboard text can travel in either direction over an authenticated session:
 
 ```json
