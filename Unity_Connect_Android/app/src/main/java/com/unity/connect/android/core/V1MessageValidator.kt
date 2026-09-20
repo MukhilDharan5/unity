@@ -200,7 +200,10 @@ internal object V1MessageValidator {
         if (root[name] == null || root[name] == JsonNull) null else integer(root, name)
 
     private fun nullableNumber(root: JsonObject, name: String): Double? {
-        val primitive = root[name] as? JsonPrimitive ?: return null
+        val value = root[name]
+        if (value == null || value == JsonNull) return null
+        val primitive = value as? JsonPrimitive
+            ?: throw IllegalArgumentException("Expected number")
         require(!primitive.isString) { "Expected number" }
         return primitive.doubleOrNull ?: throw IllegalArgumentException("Expected number")
     }

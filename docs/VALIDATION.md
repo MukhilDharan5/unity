@@ -4,7 +4,7 @@ Windows Stage 1B-W validation on 17 September 2026 used .NET SDK 10.0.401 on Win
 
 ## Automated checks
 
-- Desktop-window checks: shared phone state and active-only media visibility, sidebar navigation, disconnected screen, light/dark dashboard and pairing dialog renders, long-title truncation, switch-state display, minimum-size scrolling, 150% raster rendering, and close-to-tray/reopen lifecycle.
+- Desktop-window checks: shared phone state and persistent media visibility, sidebar navigation, disconnected screen, light/dark dashboard and embedded pairing-view renders, long-title truncation, switch-state display, minimum-size scrolling, 150% raster rendering, and close-to-tray/reopen lifecycle.
 
 - Windows Release application build: 0 warnings, 0 errors.
 - Windows core checks: **31/31 passed**. Five new owner tests verify late completion, single-use guards, canceled stop waits/concurrent disposal, send cancellation, fault cleanup and late frames. Existing coverage includes all 67 shared application fixtures with typed round-trips, the v1 codec, malformed and oversized input, state routing, media capability gating, DND semantics, clipboard routing, lifecycle fencing, authenticated transport contracts, mutual identity proof, matching confirmation codes, encrypted bidirectional messages, and maximum-size BLE fragmentation with sequence wrap.
@@ -20,7 +20,7 @@ Windows Stage 1B-W validation on 17 September 2026 used .NET SDK 10.0.401 on Win
 1. Launch `artifacts/PhoneCompanion/PhoneCompanion.exe`; verify the desktop dashboard and one tray icon. Close the window and verify it stays available in the tray; choose **Open Unity Connect** to restore it. Use `--tray` for a quiet start.
 2. Open the tray flyout and choose **Connect phone**. Verify both Wi-Fi endpoint entry and BLE discovery are offered.
 3. Enable **Use sample data** and verify battery, network, DND, sound, and media controls. Pause playback and verify the media card collapses.
-4. Check Windows light and dark themes and verify the dashboard, native title bar, flyout, pairing dialog, and tray menu follow the white/black/light-blue palette.
+4. Check Windows light and dark themes and verify the dashboard, native title bar, flyout, embedded pairing view, and tray menu follow the layered palette and current system accent.
 5. Disable sample data and confirm the desktop shows its connection screen and the flyout stops displaying sample values. Resize the dashboard and verify all lower controls remain reachable by scrolling.
 
 ## Physical-device validation still required

@@ -43,8 +43,11 @@ internal static class Program
         using var model = new PhoneViewModel(manager, Dispatcher.CurrentDispatcher, clipboardSync);
         var flyout = new FlyoutWindow { DataContext = model };
         var desktop = new MainWindow { DataContext = model };
+        var pairingStore = new IdentityAndTrustStore();
+        desktop.ConfigurePairing(manager, pairingStore);
         var desktopMedia = (Border)desktop.FindName("DesktopMediaCard");
-        var pairing = new PairingWindow(manager, new IdentityAndTrustStore());
+        var pairing = new PairingView();
+        pairing.Configure(manager, pairingStore);
         var mediaCard = (Border)(flyout.FindName("MediaCard") ?? throw new Exception("Media card was not created."));
         using (var tray = new TrayIconController())
         {
@@ -93,7 +96,7 @@ internal static class Program
         ((StackPanel)pairing.FindName("CodePanel")).Visibility = Visibility.Visible;
         ((TextBlock)pairing.FindName("Code")).Text = "123456";
         RenderPairing(pairing, output, "pairing-code-dark");
-        pairing.Close();
+        pairing.Stop();
         SystemThemeService.ApplyPalette(Application.Current.Resources, AppTheme.Light);
         await Settle();
         Check(((SolidColorBrush)Application.Current.Resources["WindowBackground"]).Color == Color.FromRgb(243, 243, 243), "Light palette applied");
@@ -217,17 +220,17 @@ internal static class Program
         });
         Check(buttonsFit, $"{name}: all controls fit horizontally");
     }
-    private static void RenderPairing(PairingWindow window, string output, string name)
+    private static void RenderPairing(PairingView pairing, string output, string name)
     {
-        var content = (FrameworkElement)window.Content;
-        content.Measure(new Size(444, double.PositiveInfinity));
-        var size = new Size(444, content.DesiredSize.Height);
+        var content = (FrameworkElement)pairing;
+        content.Measure(new Size(680, double.PositiveInfinity));
+        var size = new Size(680, content.DesiredSize.Height);
         content.Arrange(new Rect(size)); content.UpdateLayout();
-        var bitmap = new RenderTargetBitmap(444, (int)Math.Ceiling(size.Height), 96, 96, PixelFormats.Pbgra32);
+        var bitmap = new RenderTargetBitmap(680, (int)Math.Ceiling(size.Height), 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(content);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var stream = File.Create(Path.Combine(output, name + ".png")); encoder.Save(stream);
-        Check(size.Height < 650, $"{name}: pairing dialog fits");
+        Check(size.Height < 650, $"{name}: embedded pairing view fits");
     }
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
     {

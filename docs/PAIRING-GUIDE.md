@@ -16,7 +16,7 @@ The packaged apps implement pairing over Wi-Fi/LAN and BLE. Both routes use the 
 
 1. Keep the phone and laptop on the same Wi-Fi network. Open Unity Connect and tap **Start pairing**.
 2. Open the Windows tray flyout and select **Connect phone**.
-3. Copy the `address:port` shown on Android into the Windows pairing window and choose **Connect over Wi-Fi**. You can choose **Find with Bluetooth** instead if the phone supports BLE peripheral mode.
+3. Open **Connection** in the Windows app. Copy the `address:port` shown on Android into the embedded pairing panel and choose **Connect to this address**. You can choose **Connect with Bluetooth** instead if the phone supports BLE peripheral mode.
 4. Compare the six-digit code. Select **Codes match** on both devices only when it is identical.
 5. The Android app sends a complete phone-state snapshot after pairing. Windows then shows battery, network, DND, sound, and any playing audio.
 6. Leave Bluetooth and Wi-Fi available. Windows authenticates the second route automatically and shows **Wi-Fi + Bluetooth** when both are ready.

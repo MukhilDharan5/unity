@@ -1,0 +1,60 @@
+<UserControl x:Class="PhoneCompanion.Windows.PairingView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Background="Transparent" Foreground="{DynamicResource PrimaryText}"
+        FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13"
+        TextOptions.TextFormattingMode="Display" UseLayoutRounding="True">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="UiResources.xaml" /></ResourceDictionary.MergedDictionaries>
+            <Style TargetType="TextBox">
+                <Setter Property="Background" Value="{DynamicResource ControlFill}" /><Setter Property="Foreground" Value="{DynamicResource PrimaryText}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource ControlStroke}" /><Setter Property="BorderThickness" Value="1" /><Setter Property="CaretBrush" Value="{DynamicResource PrimaryText}" />
+                <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox">
+                    <Border x:Name="Input" CornerRadius="7" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}"><ScrollViewer x:Name="PART_ContentHost" /></Border>
+                    <ControlTemplate.Triggers><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Input" Property="BorderBrush" Value="{DynamicResource AccentInk}" /><Setter TargetName="Input" Property="BorderThickness" Value="2" /></Trigger><Trigger Property="IsEnabled" Value="False"><Setter TargetName="Input" Property="Opacity" Value="0.45" /></Trigger></ControlTemplate.Triggers>
+                </ControlTemplate></Setter.Value></Setter>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <Border Style="{StaticResource Card}" Padding="24">
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="210" /><ColumnDefinition Width="28" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+            <StackPanel>
+                <Border Width="44" Height="44" CornerRadius="12" Background="{DynamicResource AccentSurface}" HorizontalAlignment="Left" Margin="0,0,0,18">
+                    <TextBlock Text="&#xE71B;" Style="{StaticResource Glyph}" FontSize="21" Foreground="{DynamicResource AccentInk}" HorizontalAlignment="Center" />
+                </Border>
+                <TextBlock Text="Connect your phone" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <TextBlock Text="Open Unity Connect on Android, then connect over the same network or nearby Bluetooth." Style="{StaticResource Caption}" Margin="0,8,0,0" />
+                <TextBlock Text="The same six-digit code must be approved on both devices before either is trusted." Style="{StaticResource Caption}" FontSize="11" Margin="0,18,0,0" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="2">
+                <StackPanel x:Name="ConnectPanel">
+                    <Button x:Name="DiscoverButton" Style="{StaticResource PrimaryButton}" Content="Find phone automatically" Height="40" Click="OnDiscover" />
+                    <TextBlock Text="Or enter the Wi-Fi address shown in the Android app." Style="{StaticResource Caption}" FontSize="11" Margin="1,14,0,8" />
+                    <TextBox x:Name="Endpoint" Height="40" Padding="12,8" FontSize="14" VerticalContentAlignment="Center" AutomationProperties.Name="Phone Wi-Fi address" />
+                    <Button x:Name="WifiButton" Style="{StaticResource ActionButton}" Content="Connect to this address" Height="38" Margin="0,8,0,0" Click="OnWifi" />
+                    <Grid Margin="0,14"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Border Height="1" Background="{DynamicResource Border}" VerticalAlignment="Center" /><TextBlock Grid.Column="1" Text="or" Style="{StaticResource Caption}" FontSize="10" Margin="12,0" /><Border Grid.Column="2" Height="1" Background="{DynamicResource Border}" VerticalAlignment="Center" /></Grid>
+                    <Button x:Name="BluetoothButton" Style="{StaticResource ActionButton}" Height="38" Click="OnBluetooth"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE702;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Margin="0,0,8,0" VerticalAlignment="Center" /><TextBlock Text="Connect with Bluetooth" /></StackPanel></Button>
+                </StackPanel>
+
+                <StackPanel x:Name="CodePanel" Visibility="Collapsed">
+                    <Border Background="{DynamicResource AccentSurface}" BorderBrush="{DynamicResource CardStroke}" BorderThickness="1" CornerRadius="10" Padding="18,20" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Confirm on both devices" HorizontalAlignment="Center" FontSize="13" FontWeight="SemiBold" />
+                            <TextBlock x:Name="Code" FontFamily="Cascadia Mono, Consolas" FontSize="40" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,12,0,6" />
+                            <TextBlock Text="Only continue if both screens show this code." Style="{StaticResource Caption}" FontSize="11" TextAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="10" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Button Style="{StaticResource ActionButton}" Content="Cancel" Click="OnDecline" /><Button Grid.Column="2" Style="{StaticResource PrimaryButton}" Content="Codes match" Click="OnApprove" /></Grid>
+                </StackPanel>
+
+                <Border Background="{DynamicResource SubtleBackground}" CornerRadius="7" Padding="10,8" Margin="0,14,0,0">
+                    <TextBlock x:Name="Status" Text="Choose a connection method." Style="{StaticResource Caption}" AutomationProperties.LiveSetting="Polite" />
+                </Border>
+                <Button x:Name="ForgetButton" Style="{StaticResource TextButton}" Content="Forget paired phone" HorizontalAlignment="Left" Margin="0,8,0,0" Visibility="Collapsed" Click="OnForget" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

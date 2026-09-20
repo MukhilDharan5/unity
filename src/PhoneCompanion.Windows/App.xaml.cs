@@ -36,7 +36,6 @@ public partial class App : Application
     private LaptopAdaptiveBrightnessController? _laptopBrightness;
     private LaptopAudioStreamer? _laptopAudio;
     private ProximityLockController? _proximityLock;
-    private PairingWindow? _pairing;
     private readonly IdentityAndTrustStore _connectionStore = new();
     private CancellationTokenSource? _reconnect;
     private Task? _reconnectTask;
@@ -72,6 +71,8 @@ public partial class App : Application
             _androidSettings, _internetConnectivity, _laptopAudio, _proximityLock);
         _flyout = new FlyoutWindow { DataContext = _viewModel };
         _desktop = new MainWindow { DataContext = _viewModel };
+        _desktop.ConfigurePairing(_manager, _connectionStore);
+        _desktop.PairingActivityChanged += OnPairingActivityChanged;
         MainWindow = _desktop;
         _tray = new TrayIconController();
         _tray.ToggleRequested += () => _flyout.ToggleAtCursor();
@@ -143,7 +144,7 @@ public partial class App : Application
     }
     private void StartReconnectLoop()
     {
-        if (_exiting || _manager is null || _pairing is not null || _connectionStore.Load() is null ||
+        if (_exiting || _manager is null || _connectionStore.Load() is null ||
             _manager.Current.IsDemo || _reconnectTask is { IsCompleted: false }) return;
         _reconnect?.Dispose(); _reconnect = new CancellationTokenSource();
         while (_reconnectWake.Wait(0)) { }
@@ -222,18 +223,14 @@ public partial class App : Application
     }
     internal void ShowPairing()
     {
-        if (_manager is null || _exiting) return;
-        StopReconnectLoop();
-        if (_pairing is { IsVisible: true }) { _pairing.Activate(); return; }
-        _pairing = new PairingWindow(_manager, _connectionStore);
-        if (_desktop?.IsVisible == true) _pairing.Owner = _desktop;
-        _pairing.Connected += () =>
-        {
-            if (_desktop?.IsVisible == true) _desktop.Activate();
-            else _flyout?.ShowAtCursor();
-        };
-        _pairing.Closed += (_, _) => { _pairing = null; StartReconnectLoop(); };
-        _pairing.Show(); _pairing.Activate();
+        if (_desktop is null || _exiting) return;
+        _flyout?.Hide();
+        _desktop.ShowPairing();
+    }
+    private void OnPairingActivityChanged(bool active)
+    {
+        if (active) StopReconnectLoop();
+        else StartReconnectLoop();
     }
     private async Task SetDemoAsync(bool enabled)
     {
@@ -268,10 +265,10 @@ public partial class App : Application
             _manager.PcLockRequested -= OnPcLockRequested;
         }
         if (_windowsMedia is not null) { _windowsMedia.StateChanged -= OnWindowsMediaChanged; _windowsMedia.Dispose(); _windowsMedia = null; }
-        _pairing?.Close(); _pairing = null;
         _clipboard?.Dispose(); _clipboard = null;
         if (_manager is not null) { _manager.StateChanged -= OnPhoneStateChanged; await _manager.DisposeAsync(); }
         _flyout?.CloseForExit();
+        if (_desktop is not null) _desktop.PairingActivityChanged -= OnPairingActivityChanged;
         _desktop?.CloseForExit();
         Shutdown();
     }
@@ -287,6 +284,7 @@ public partial class App : Application
         _internetConnectivity?.Dispose(); _internetConnectivity = null;
         _laptopBrightness?.Dispose(); _laptopBrightness = null;
         _clipboard?.Dispose();
+        if (_desktop is not null) _desktop.PairingActivityChanged -= OnPairingActivityChanged;
         if (_manager is not null) _manager.StateChanged -= OnPhoneStateChanged;
         if (_manager is not null) _manager.PcMediaCommandReceived -= OnPcMediaCommandReceived;
         if (_manager is not null) _manager.PcLockRequested -= OnPcLockRequested;

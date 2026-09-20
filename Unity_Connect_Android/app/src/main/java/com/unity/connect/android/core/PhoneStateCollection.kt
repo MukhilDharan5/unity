@@ -30,7 +30,13 @@ internal class PhoneStateCollection(
             snapshots.collect { snapshot ->
                 if (current !== next || !owner.isCurrentGeneration(generation) || !owner.hasSessions) return@collect
                 latest = snapshot
-                owner.sendActive(MessageCodec.encodePhoneSnapshot(snapshot).toByteArray(Charsets.UTF_8))
+                val frame = try {
+                    MessageCodec.encodePhoneSnapshot(snapshot).toByteArray(Charsets.UTF_8)
+                } catch (_: Exception) {
+                    // A temporarily unavailable Android sensor must not tear down the foreground service.
+                    return@collect
+                }
+                owner.sendActive(frame)
             }
         }
         current = next; cleanup = null; next.start()

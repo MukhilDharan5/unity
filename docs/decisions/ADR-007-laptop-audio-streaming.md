@@ -12,7 +12,7 @@ The companion control session is bandwidth-limited and also carries state and co
 
 ## Decision
 
-Implement laptop-to-phone first. A visible Windows action explains that the current output will be captured and requires confirmation on every start. Windows uses NAudio 3.1 WASAPI render-loopback capture and converts the current mono/stereo mix to PCM16. Android opens an ephemeral TCP listener and plays the received PCM with `AudioTrack` in streaming mode.
+Implement laptop-to-phone first. The explicit, capability-gated **Play on phone** action starts capture and the in-app status reports progress; no separate confirmation dialog interrupts the main app flow. Windows uses NAudio 3.1 WASAPI render-loopback capture and converts the current mono/stereo mix to PCM16. Android opens an ephemeral TCP listener and plays the received PCM with `AudioTrack` in streaming mode.
 
 The existing authenticated session carries only `audio_stream_start`, `audio_sink_ready`, and `audio_stream_stop`. Each start creates a random 256-bit AES key and 128-bit connection token. The key and token travel inside the existing encrypted session. The separate Wi-Fi socket authenticates its one client with the token, then protects every ordered PCM record with AES-256-GCM and a sequence-derived nonce. Either app can stop the matching stream. Keys and tokens are not persisted.
 

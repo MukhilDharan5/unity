@@ -1,6 +1,6 @@
 # Project progress and resume log
 
-Last updated: 20 September 2026. **The planned MVP feature sequence is implemented through the approved Stage 16 lock-only scope on the isolated encrypted v1 channel.** Automatic authenticated LAN discovery, concurrent BLE + Wi-Fi sessions, reconnect, Android access state, phone sensors, opt-in laptop adaptive brightness, laptop-to-phone audio streaming and bidirectional device locking are complete. Detailed diagnostics and broad validation are deferred.
+Last updated: 20 September 2026. **The planned MVP feature sequence is implemented through the approved Stage 16 lock-only scope on the isolated encrypted v1 channel.** Automatic authenticated LAN discovery, concurrent BLE + Wi-Fi sessions, reconnect, Android access state, phone sensors, opt-in laptop adaptive brightness, laptop-to-phone audio streaming and bidirectional device locking are complete. The Android snapshot crash found during the first live laptop/phone connection was fixed and the updated app established an authenticated Wi-Fi session on the physical devices. Detailed diagnostics and broad validation are deferred.
 
 ## Current instructions
 
@@ -255,7 +255,7 @@ Minimal verification per the MVP instruction: the focused Windows Release applic
 
 ### 20 September 2026 — Stage 15 laptop-to-phone audio MVP completed
 
-The audio feasibility choice is laptop-to-phone first. Windows has a supported WASAPI render-loopback path, while Android playback through `AudioTrack` requires no new permission; phone playback capture would require a separate `MediaProjection` consent/permission flow and source-app cooperation. Every Windows start shows a capture-scope confirmation and explicitly warns that protected output may be silent.
+The audio feasibility choice is laptop-to-phone first. Windows has a supported WASAPI render-loopback path, while Android playback through `AudioTrack` requires no new permission; phone playback capture would require a separate `MediaProjection` consent/permission flow and source-app cooperation. The explicit **Play on phone** action starts capture and protected output may still be silent; the later inline-flow pass removed the redundant app-owned confirmation dialog.
 
 Windows now uses NAudio 3.1's current `WasapiRecorder` loopback API, buffers the current 8–96 kHz mono/stereo mix, converts it to PCM16 and exposes **Play on phone / Stop** in the full app and flyout. Android opens an ephemeral TCP sink, requests media audio focus, decrypts and plays the PCM stream, and exposes its own Stop action. Companion disconnect, permanent phone audio-focus loss, socket failure or app exit also ends the stream.
 
@@ -299,11 +299,27 @@ This is a presentation change for existing MVP features. It does not add protoco
 
 ### 20 September 2026 — Windows 11 visual modernization pass
 
-The Windows WPF shell was modernized in place without changing the UI framework or feature architecture. The full app now uses a wider Windows Settings-style navigation pane with app identity, horizontal navigation rows and a compact connection/tray status surface. The content area uses layered rounded surfaces, Fluent spacing and Segoe UI Variable. Shared buttons, media buttons, toggles, sliders, tooltips, cards and scrollbars now use consistent Windows 11 proportions and hover, pressed, focus and disabled states. The flyout and pairing dialog share the updated visual resources.
+The Windows WPF shell was modernized in place without changing the UI framework or feature architecture. The full app now uses a wider Windows Settings-style navigation pane with app identity, horizontal navigation rows and a compact connection/tray status surface. The content area uses layered rounded surfaces, Fluent spacing and Segoe UI Variable. Shared buttons, media buttons, toggles, sliders, tooltips, cards and scrollbars now use consistent Windows 11 proportions and hover, pressed, focus and disabled states. The flyout and pairing experience share the updated visual resources.
 
-`SystemThemeService` now derives the accent, contrast text and tinted accent surfaces from the current Windows accent color while continuing to follow light/dark preference changes. A shared native-window helper requests Windows 11 rounded corners, matching caption/text colors and the DWM main-window system backdrop for the dashboard and pairing dialog, with the normal opaque palette serving as the fallback when an attribute is unsupported.
+`SystemThemeService` now derives the accent, contrast text and tinted accent surfaces from the current Windows accent color while continuing to follow light/dark preference changes. A shared native-window helper requests Windows 11 rounded corners, matching caption/text colors and the DWM main-window system backdrop for the dashboard, with the normal opaque palette serving as the fallback when an attribute is unsupported.
 
 No feature, protocol, permission, transport or persistence behavior changed. The focused Windows Release build passed with 0 warnings/errors. Broad UI smoke rendering, DPI/high-contrast inspection and hardware display validation remain deferred under the MVP pacing decision. ADR-004 remains open for any future WinUI 3 migration; this pass does not make that architectural change.
+
+### 20 September 2026 — Pairing and app confirmations moved inline
+
+The user requested that app-owned popups open smoothly inside the main app, especially pairing. The separate `PairingWindow` was replaced by a reusable `PairingView` embedded in the Connection page. Tray, flyout, dashboard and connection-management actions now bring the existing main window forward, select Connection, scroll to the pairing surface and animate the page in. Network discovery, manual Wi-Fi address entry, Bluetooth pairing, six-digit confirmation, trust persistence, forget and status/error feedback all remain in that surface. Reconnect coordination pauses during a manual pairing operation and resumes afterward.
+
+The laptop-audio `MessageBox` was also removed. Clicking the explicit **Play on phone** action now starts the existing capture flow directly and reports startup/result text through the app's shared status area. The tray flyout remains a deliberate tray surface, and operating-system-owned Bluetooth, Wi-Fi, tethering and Android permission screens still open in their system UI because the app cannot embed them.
+
+No protocol, trust, cryptography, permission or audio transport behavior changed. The focused Windows Release build passed with 0 warnings/errors. Full interaction/rendering validation remains deferred under the MVP pacing decision.
+
+### 20 September 2026 — Live Android connection crash fixed
+
+The first physical laptop/phone connection exposed a service crash before pairing or reconnect could settle. Android's snapshot encoder emits JSON `null` when ambient-light data is unavailable, but `V1MessageValidator.nullableNumber` treated that valid null as a malformed number. The uncaught encoder exception then cancelled the foreground service's main coroutine and Android restarted the process repeatedly.
+
+The nullable-number validator now accepts missing and JSON-null values consistently with the v1 model. `PhoneStateCollection` also drops a malformed sensor snapshot instead of allowing a future encoder fault to terminate the foreground service. The corrected debug APK was built and installed over the existing phone app without clearing its saved trust.
+
+Focused live verification used the user's current devices: the laptop at `192.168.1.33` reached the phone listener at `192.168.1.35:38471`; the repaired Android process remained alive; Windows established a TCP session to that listener; and the phone UI reported **Connected over Wi-Fi** and **Your phone and laptop, connected.** The Android debug build completed successfully. Broad regression tests remain deferred under the MVP pacing instruction.
 
 ## Next concrete resume action
 

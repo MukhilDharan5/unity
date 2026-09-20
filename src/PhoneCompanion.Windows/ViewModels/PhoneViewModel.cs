@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using PhoneCompanion.Core.Models;
@@ -401,11 +400,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
             Refresh();
             return;
         }
-        var answer = MessageBox.Show(
-            "Unity Connect will capture all audio playing through the current Windows output and stream it to your phone over the local network. Protected content may be silent. Start streaming?",
-            "Play laptop audio on phone", MessageBoxButton.YesNo, MessageBoxImage.Question);
-        if (answer != MessageBoxResult.Yes) return;
-        _busy = true; _commandNotice = null; Refresh();
+        _busy = true; _commandNotice = "Starting laptop audio on your phone…"; Refresh();
         try
         {
             var error = await _laptopAudio.StartAsync();
