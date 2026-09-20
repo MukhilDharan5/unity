@@ -40,13 +40,13 @@ This document defines the implemented version 1 contract shared by the Windows P
 
 ## 4. Session Lifecycle and Routing
 *   **Version Negotiation:** First encrypted message after handshake is `{"type": "hello", "version": 1}`. If `version` is not 1, the session is terminated.
-*   **Route Preference:** Android prefers an authenticated LAN session when both LAN and BLE are live. Application state and commands use one active route, with BLE as fallback.
+*   **Route Preference:** Both peers may retain authenticated LAN and BLE sessions concurrently. Application state and commands use one active route, preferring LAN, with BLE kept warm as fallback. Ambiguous commands are never replayed across routes.
 *   **Initial State:** Upon a successful, authenticated session establishment, Android immediately sends a `snapshot` frame containing all 5 state categories.
 *   **Updates:** Android sends the latest normalized snapshot whenever collected phone state changes.
 *   **Stale State and Disconnection:** If the transport disconnects, Windows immediately clears all state to disconnected.
 *   **Liveness:**
     *   Both LAN and BLE: encrypted application ping every 10 seconds, with a 35-second received-record silence deadline. Android checks that deadline every 5 seconds; GATT disconnect callbacks also close the Android pipe. The Android TCP socket additionally enables OS keep-alive.
-*   **Reconnect Behavior:** Windows repeatedly tries the saved Wi-Fi endpoint (up to 8 seconds), then BLE (up to 15 seconds), with 2/5/10/20/30-second capped pauses while disconnected. The user can reconnect immediately from **Connect phone**. There is no connected-session BLE-to-LAN promotion or Windows mDNS browsing.
+*   **Reconnect Behavior:** Windows restores each missing route independently: saved/discovered Wi-Fi endpoints use an eight-second connect window and BLE uses a fifteen-second window, with capped pauses between rounds. It continues until both routes are authenticated. The user can reconnect immediately from **Connect phone**.
 
 ## 5. Command Semantics
 *   **Confirmation:** Media and DND commands do not update Windows state optimistically. The resulting Android snapshot is the authoritative confirmation. Version 1 does not retry toggle/skip commands after an ambiguous transport failure.

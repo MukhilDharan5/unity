@@ -1,7 +1,7 @@
 namespace PhoneCompanion.Core.Models;
 
 public enum ConnectionState { Disconnected, Connecting, Connected }
-public enum TransportKind { Mock, Ble, Wifi }
+public enum TransportKind { Mock, Ble, Wifi, BleAndWifi }
 public enum SoundMode { Normal, Vibrate, Silent }
 public enum SignalStrength { Unknown, None, Poor, Fair, Good, Excellent }
 public enum CellularNetwork { Unknown, Cellular, TwoG, ThreeG, FourG, FiveG }

@@ -62,6 +62,8 @@ data class UiState(
     val laptopAudioStreaming: Boolean = false,
     val laptopAudioNotice: String? = null,
     val wifiAddress: String? = null,
+    val wifiRouteConnected: Boolean = false,
+    val bleRouteConnected: Boolean = false,
     val awaitingOtherDevice: Boolean = false,
     val access: AccessState = AccessState()
 )
@@ -380,7 +382,8 @@ class ConnectionService : Service() {
             pairingExpiry?.cancel(); pairingExpiry = null; pairingUntil = 0
             cancelListenerRetries(resetAttempts = true)
             state.update { it.copy(isPaired = true, connectionState = ConnectionState.CONNECTED, sasCode = null,
-                pairedPcName = session.peer.name, awaitingOtherDevice = false, featureNotice = null) }
+                pairedPcName = session.peer.name, awaitingOtherDevice = false, featureNotice = null,
+                wifiRouteConnected = owner.hasSession("wifi"), bleRouteConnected = owner.hasSession("ble")) }
             notifyState()
             if (!collection.isCollecting) restartCollector()
             latest?.let { if (owner.isActive(lease)) session.send(MessageCodec.encodePhoneSnapshot(it).toByteArray(Charsets.UTF_8)) }
@@ -425,7 +428,8 @@ class ConnectionService : Service() {
         state.update { it.copy(connectionState = if (owner.hasSessions) ConnectionState.CONNECTED else ConnectionState.DISCONNECTED,
             sasCode = if (consent == null) null else it.sasCode,
             awaitingOtherDevice = if (consent == null) false else it.awaitingOtherDevice,
-            pcMedia = if (owner.hasSessions) it.pcMedia else null) }
+            pcMedia = if (owner.hasSessions) it.pcMedia else null,
+            wifiRouteConnected = owner.hasSession("wifi"), bleRouteConnected = owner.hasSession("ble")) }
         if (!owner.hasSessions) { stopCollector(); laptopAudio.stop() }
         else latest?.let { snapshot -> sendActive(MessageCodec.encodePhoneSnapshot(snapshot).toByteArray(Charsets.UTF_8)) }
         notifyState()
@@ -582,7 +586,7 @@ class ConnectionService : Service() {
         pairingExpiry?.cancel(); pairingExpiry = null
         stopListeners(); scope.cancel(); dnd.close()
         state.update { it.copy(connectionState = ConnectionState.DISCONNECTED, sasCode = null,
-            awaitingOtherDevice = false, pcMedia = null) }
+            awaitingOtherDevice = false, pcMedia = null, wifiRouteConnected = false, bleRouteConnected = false) }
         super.onDestroy()
     }
 }

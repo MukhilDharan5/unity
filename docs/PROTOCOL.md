@@ -13,7 +13,7 @@ This versioned logical protocol is implemented by the Windows codec and the Andr
 - `null` means unavailable, never Off, Normal or 0%. For media, `null` also covers no active media; v1 does not distinguish permission denial from no session.
 - The selected authenticated session supplies identity and connection state. A payload cannot mark a peer trusted or connected.
 - There is no generic capability-negotiation envelope, request ID, application acknowledgment/error response or version-range negotiation in the live v1 path. Kotlin acknowledgment models are unused by live dispatch. Adding those semantics requires a reviewed protocol extension.
-- Each session delivers frames in order. There is one active transport at a time. No cross-route merging, automatic retries, timestamps or sequencing behavior is assumed. A route switch resets state and rejects callbacks from the old route.
+- Each physical session delivers frames in order. BLE and Wi-Fi may remain authenticated concurrently, but application messages use one deterministic active route: Wi-Fi first, then BLE. Frames are not merged and an ambiguous failed command is never retried automatically on the other route. Losing one route preserves current state while the other is connected; callbacks from an ended route are rejected.
 
 ## Phone → Windows
 

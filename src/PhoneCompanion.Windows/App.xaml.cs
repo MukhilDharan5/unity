@@ -104,8 +104,13 @@ public partial class App : Application
         _laptopBrightness?.Update(state);
         if (state.Connection == PhoneCompanion.Core.Models.ConnectionState.Connected && !state.IsDemo)
             Dispatcher.BeginInvoke(async () => await PublishWindowsMediaAsync(_windowsMedia?.Current));
-        if (_exiting || _suppressReconnect || state.Connection != PhoneCompanion.Core.Models.ConnectionState.Disconnected || state.IsDemo) return;
-        Dispatcher.BeginInvoke(StartReconnectLoop);
+        if (_exiting || _suppressReconnect || state.IsDemo || _manager is null) return;
+        if (!_manager.HasConnectedRoute(PhoneCompanion.Core.Models.TransportKind.Wifi) ||
+            !_manager.HasConnectedRoute(PhoneCompanion.Core.Models.TransportKind.Ble))
+        {
+            try { _reconnectWake.Release(); } catch (SemaphoreFullException) { }
+            Dispatcher.BeginInvoke(StartReconnectLoop);
+        }
     }
     private void OnWindowsMediaChanged(PhoneCompanion.Core.Models.MediaState? state) =>
         Dispatcher.BeginInvoke(async () => await PublishWindowsMediaAsync(state));
@@ -139,7 +144,7 @@ public partial class App : Application
     private void StartReconnectLoop()
     {
         if (_exiting || _manager is null || _pairing is not null || _connectionStore.Load() is null ||
-            _reconnectTask is { IsCompleted: false }) return;
+            _manager.Current.IsDemo || _reconnectTask is { IsCompleted: false }) return;
         _reconnect?.Dispose(); _reconnect = new CancellationTokenSource();
         while (_reconnectWake.Wait(0)) { }
         _reconnectTask = ReconnectLoopAsync(_reconnect.Token);
@@ -151,25 +156,45 @@ public partial class App : Application
     private async Task ReconnectLoopAsync(CancellationToken token)
     {
         var attempt = 0;
-        while (!token.IsCancellationRequested && !_exiting && _manager is not null &&
-               _manager.Current.Connection != PhoneCompanion.Core.Models.ConnectionState.Connected)
+        while (!token.IsCancellationRequested && !_exiting && _manager is not null && !_manager.Current.IsDemo)
         {
             var trusted = _connectionStore.Load();
             if (trusted is null) return;
-            if (trusted.WifiEndpoint is { } endpoint && await TryTrustedRouteAsync(
-                PhoneCompanion.Core.Models.TransportKind.Wifi, value => ConnectionFactories.OpenWifiAsync(endpoint, value),
-                trusted, ConnectionPolicy.WifiConnectTimeout, token, endpoint)) return;
-            var discovered = await MdnsPhoneDiscovery.FindAsync(token);
-            foreach (var phone in discovered.Take(3))
+            if (!_manager.HasRoute(PhoneCompanion.Core.Models.TransportKind.Wifi))
             {
-                if (string.Equals(phone.Endpoint, trusted.WifiEndpoint, StringComparison.OrdinalIgnoreCase)) continue;
-                var candidate = phone.Endpoint;
-                if (await TryTrustedRouteAsync(PhoneCompanion.Core.Models.TransportKind.Wifi,
-                    value => ConnectionFactories.OpenWifiAsync(candidate, value), trusted,
-                    ConnectionPolicy.WifiConnectTimeout, token, candidate)) return;
+                var wifiConnected = false;
+                if (trusted.WifiEndpoint is { } endpoint)
+                    wifiConnected = await TryTrustedRouteAsync(PhoneCompanion.Core.Models.TransportKind.Wifi,
+                        value => ConnectionFactories.OpenWifiAsync(endpoint, value), trusted,
+                        ConnectionPolicy.WifiConnectTimeout, token, endpoint);
+                if (!wifiConnected)
+                {
+                    try
+                    {
+                        var discovered = await MdnsPhoneDiscovery.FindAsync(token);
+                        foreach (var phone in discovered.Take(3))
+                        {
+                            if (string.Equals(phone.Endpoint, trusted.WifiEndpoint, StringComparison.OrdinalIgnoreCase)) continue;
+                            var candidate = phone.Endpoint;
+                            if (await TryTrustedRouteAsync(PhoneCompanion.Core.Models.TransportKind.Wifi,
+                                value => ConnectionFactories.OpenWifiAsync(candidate, value), trusted,
+                                ConnectionPolicy.WifiConnectTimeout, token, candidate)) break;
+                        }
+                    }
+                    catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+                    catch { }
+                }
             }
-            if (await TryTrustedRouteAsync(PhoneCompanion.Core.Models.TransportKind.Ble,
-                value => ConnectionFactories.OpenBleAsync(null, value), trusted, ConnectionPolicy.BleConnectTimeout, token)) return;
+            if (!_manager.HasRoute(PhoneCompanion.Core.Models.TransportKind.Ble))
+                await TryTrustedRouteAsync(PhoneCompanion.Core.Models.TransportKind.Ble,
+                    value => ConnectionFactories.OpenBleAsync(null, value), trusted, ConnectionPolicy.BleConnectTimeout, token);
+            if (_manager.HasConnectedRoute(PhoneCompanion.Core.Models.TransportKind.Wifi) &&
+                _manager.HasConnectedRoute(PhoneCompanion.Core.Models.TransportKind.Ble))
+            {
+                attempt = 0;
+                await _reconnectWake.WaitAsync(token);
+                continue;
+            }
             await _reconnectWake.WaitAsync(ConnectionPolicy.ReconnectDelay(attempt++), token);
         }
     }
@@ -184,7 +209,7 @@ public partial class App : Application
                 (_, _) => Task.FromResult(false));
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime);
             timeout.CancelAfter(timeoutValue);
-            var connected = await _manager.SetTransportAsync(transport, timeout.Token);
+            var connected = await _manager.AddTransportAsync(transport, timeout.Token);
             if (connected && learnedEndpoint is not null &&
                 !string.Equals(learnedEndpoint, trusted.WifiEndpoint, StringComparison.OrdinalIgnoreCase))
             {

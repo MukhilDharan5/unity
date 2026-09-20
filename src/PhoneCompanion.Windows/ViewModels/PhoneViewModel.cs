@@ -87,6 +87,9 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     public string Status => _state.Connection switch
     {
         ConnectionState.Connecting => "Connecting", ConnectionState.Connected when IsDemo => "Sample",
+        ConnectionState.Connected when _state.Transport == TransportKind.BleAndWifi => "Connected · Wi-Fi + Bluetooth",
+        ConnectionState.Connected when _state.Transport == TransportKind.Wifi => "Connected · Wi-Fi",
+        ConnectionState.Connected when _state.Transport == TransportKind.Ble => "Connected · Bluetooth",
         ConnectionState.Connected => "Connected", _ => "Not connected"
     };
     public string TrayStatus
@@ -159,6 +162,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     public string LaptopAdaptiveStatus => _laptopBrightness?.Status ?? "Laptop brightness control unavailable";
     public string ConnectionSummary => IsDemo ? "Sample data preview" : _state.Connection switch
     {
+        ConnectionState.Connected when _state.Transport == TransportKind.BleAndWifi => "Your phone is available over Wi-Fi and Bluetooth",
         ConnectionState.Connected => "Your phone is available",
         ConnectionState.Connecting => "Looking for your phone",
         _ => "Connect to get started"

@@ -110,7 +110,12 @@ fun AppScreen(viewModel: AppViewModel = viewModel()) {
                 Text("Connection", style = MaterialTheme.typography.titleMedium)
                 Text(
                     when (uiState.connectionState) {
-                        ConnectionState.CONNECTED -> "Connected"
+                        ConnectionState.CONNECTED -> when {
+                            uiState.wifiRouteConnected && uiState.bleRouteConnected -> "Connected over Wi-Fi + Bluetooth"
+                            uiState.wifiRouteConnected -> "Connected over Wi-Fi"
+                            uiState.bleRouteConnected -> "Connected over Bluetooth"
+                            else -> "Connected"
+                        }
                         ConnectionState.CONNECTING -> "Looking for your laptop"
                         ConnectionState.DISCONNECTED -> "Not connected"
                     }

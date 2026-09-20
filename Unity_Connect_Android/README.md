@@ -24,6 +24,7 @@ The minimum supported version is Android 12/API 31. API 31 provides the nearby-d
 - Explicit **Lock laptop** control and optional system-approved device-admin `force-lock` support for Windows-to-phone lock requests; no remote unlock.
 - Matching version 1 logical JSON messages for the Windows codec.
 - Live BLE peripheral and LAN server connections with mutual identity proofs, a code confirmed on both devices, AES-256-GCM records, and replay rejection.
+- Concurrent authenticated BLE and Wi-Fi sessions, with Wi-Fi used first and BLE kept connected for immediate fallback.
 
 ## Pair with Windows
 

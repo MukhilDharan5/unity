@@ -19,5 +19,6 @@ The packaged apps implement pairing over Wi-Fi/LAN and BLE. Both routes use the 
 3. Copy the `address:port` shown on Android into the Windows pairing window and choose **Connect over Wi-Fi**. You can choose **Find with Bluetooth** instead if the phone supports BLE peripheral mode.
 4. Compare the six-digit code. Select **Codes match** on both devices only when it is identical.
 5. The Android app sends a complete phone-state snapshot after pairing. Windows then shows battery, network, DND, sound, and any playing audio.
+6. Leave Bluetooth and Wi-Fi available. Windows authenticates the second route automatically and shows **Wi-Fi + Bluetooth** when both are ready.
 
 If a saved phone was reset or reinstalled, choose **Forget paired phone** on Windows and **Forget laptop** on Android, then pair again. The Android foreground notification keeps the connection service available; vendor battery-saving settings can still stop it. Physical-device validation remains necessary for each phone model and network environment.

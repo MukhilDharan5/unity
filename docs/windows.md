@@ -8,6 +8,8 @@ The user-level .NET 10 app targets Windows SDK 26100 with minimum supported API 
 
 `App.xaml.cs` composes the manager, codec, theme service, clipboard coordinator, Windows media controller, optional phone-screen launcher, shared view model, flyout, desktop and tray. A named local mutex plus event provides single-instance/show behavior. Default launch opens the desktop dashboard; `--tray` suppresses it, `--flyout` opens quick controls and `--demo` selects explicit fictional data. Closing windows hides them; tray Exit awaits manager teardown.
 
+`PhoneStateManager` owns authenticated BLE and Wi-Fi transports concurrently. The reconnect coordinator continues until both are present and restores either one after loss. Wi-Fi is the primary application route and BLE stays connected as warm fallback. Phone state remains available while one route survives, and the UI labels Wi-Fi, Bluetooth, or Wi-Fi + Bluetooth. Commands are written once and are never replayed across routes after an ambiguous failure. See [ADR-009](decisions/ADR-009-concurrent-ble-wifi.md).
+
 ## Presentation
 
 The 368-DIP flyout positions in the cursor monitor's lower-right working area, remeasures after movement, and hides on Escape/deactivation/Alt+F4. It uses an explicitly transparent, borderless WPF window, rounded borders and a `DropShadowEffect`, not a system backdrop. Its position is not obtained from the tray icon's rectangle/taskbar orientation.

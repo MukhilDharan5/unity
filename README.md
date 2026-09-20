@@ -1,8 +1,8 @@
 # Phone Companion
 
-The [progress and resume log](PROGRESS.md) records the current MVP checkpoint: automatic LAN discovery, reconnect/lifecycle coordination, live phone status, bidirectional media control, optional scrcpy launch, phone brightness/light sensing, opt-in laptop adaptive brightness, public/assisted headphone handoff, phone-internet assistance, laptop-to-phone audio streaming, bidirectional device locking, explicit Android access state, portable Android builds and typed connection policy are implemented. Work is proceeding implementation-first with minimal compile checks; broad validation is deferred. The [Stage 0 audit](CURRENT_STATE.md) is the historical assessment. The current encrypted v1 channel is the accepted interim MVP direction; any compatibility-changing security migration remains a separate post-MVP decision.
+The [progress and resume log](PROGRESS.md) records the current MVP checkpoint: automatic LAN discovery, concurrent BLE + Wi-Fi connections, reconnect/lifecycle coordination, live phone status, bidirectional media control, optional scrcpy launch, phone brightness/light sensing, opt-in laptop adaptive brightness, public/assisted headphone handoff, phone-internet assistance, laptop-to-phone audio streaming, bidirectional device locking, explicit Android access state, portable Android builds and typed connection policy are implemented. Work is proceeding implementation-first with minimal compile checks; broad validation is deferred. The [Stage 0 audit](CURRENT_STATE.md) is the historical assessment. The current encrypted v1 channel is the accepted interim MVP direction; any compatibility-changing security migration remains a separate post-MVP decision.
 
-A Windows desktop control app with a compact tray flyout and an Android companion. The two apps pair over BLE or Wi-Fi/LAN, verify a six-digit code, remember the approved device identity, and protect every application message with an authenticated encrypted session.
+A Windows desktop control app with a compact tray flyout and an Android companion. The two apps pair over BLE or Wi-Fi/LAN, verify a six-digit code, remember the approved device identity, and then keep authenticated BLE and Wi-Fi sessions connected together when both are available. Every application message is protected by an authenticated encrypted session.
 
 ## Try it
 
@@ -67,12 +67,13 @@ UI checks instantiate the actual XAML, view model and tray controller, exercise 
 | Message layer | JSON v1 behind `IPhoneMessageCodec`; authenticated encryption and replay rejection below it |
 | BLE connection | Windows central/client and Android peripheral/server with bounded fragmentation |
 | Wi-Fi connection | Windows discovers Android mDNS automatically, with manual endpoint fallback; TCP sessions still require secure identity verification |
+| Concurrent routes | BLE and Wi-Fi remain authenticated together; Wi-Fi carries application messages first and BLE stays warm for fallback without duplicate command replay |
 | Pairing and trust | Mutual P-256 identity proofs, transcript-bound six-digit code, confirmation on both devices, remembered identity |
-| Live incoming state | Android snapshots feed the Windows state manager; Windows commands return through the selected route |
+| Live incoming state | Android snapshots feed the Windows state manager; both routes stay connected while application messages use one deterministic primary route |
 | Android app | Builds with permissions, pairing UI, state collection, media commands, DND rule, and clipboard transfer |
 | Hardware validation | Requires an Android 12+ physical phone with BLE peripheral support and this Windows PC |
 
-Wi-Fi is the easiest first connection: the Android screen shows the address to enter on Windows. BLE discovery is also available from **Connect phone**. Windows tries the remembered Wi-Fi address and then BLE when it starts. Use **Connect phone** if the phone's address changed. No discovered device becomes trusted until both screens confirm the same code.
+Wi-Fi is the easiest first connection: the Android screen shows the address to enter on Windows. BLE discovery is also available from **Connect phone**. After either route authenticates the remembered phone, Windows continues connecting the other route and keeps both alive. Wi-Fi is preferred for messages; BLE is ready if Wi-Fi drops. Use **Connect phone** if the phone's address changed. No discovered device becomes trusted until both screens confirm the same code.
 
 **Open phone** looks for `scrcpy.exe` beside the Windows app, under `scrcpy/` or `tools/scrcpy/`, in common install locations, on `PATH`, or at the path set in `UNITY_CONNECT_SCRCPY`. scrcpy and Android debugging authorization remain optional and separate from Unity Connect pairing.
 

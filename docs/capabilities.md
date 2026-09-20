@@ -6,7 +6,7 @@ Status: observed implementation, 20 September 2026. “Implemented” means code
 
 | Capability | Current direction/state | Gating today | Gap |
 | --- | --- | --- | --- |
-| Presence | Connected/connecting/disconnected on both apps | Authenticated route status | No separate BLE presence model; no reasoned reconnect state |
+| Presence | Connected/connecting/disconnected on both apps, with Wi-Fi/BLE/both route display | One authenticated session per route; Wi-Fi primary and BLE warm fallback | Physical dual-radio/background-power validation remains |
 | Battery | Android -> Windows | Nullable snapshot section | Phone broadcast/hardware validation |
 | Network/cellular | Android -> Windows | Permission-aware friendly categories and event callbacks | Physical-device and multi-SIM policy validation absent |
 | Sound mode | Android -> Windows, read-only | Nullable snapshot section | No sound-mode command/provider |

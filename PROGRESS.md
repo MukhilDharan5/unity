@@ -1,6 +1,6 @@
 # Project progress and resume log
 
-Last updated: 20 September 2026. **The planned MVP feature sequence is implemented through the approved Stage 16 lock-only scope on the isolated encrypted v1 channel.** Automatic authenticated LAN discovery, reconnect, Android access state, phone sensors, opt-in laptop adaptive brightness, laptop-to-phone audio streaming and bidirectional device locking are complete. Detailed diagnostics and broad validation are deferred.
+Last updated: 20 September 2026. **The planned MVP feature sequence is implemented through the approved Stage 16 lock-only scope on the isolated encrypted v1 channel.** Automatic authenticated LAN discovery, concurrent BLE + Wi-Fi sessions, reconnect, Android access state, phone sensors, opt-in laptop adaptive brightness, laptop-to-phone audio streaming and bidirectional device locking are complete. Detailed diagnostics and broad validation are deferred.
 
 ## Current instructions
 
@@ -274,6 +274,14 @@ Android now exposes **Lock laptop** while connected and sends the authenticated 
 Windows also includes a session-only **Lock Windows when phone is away** option. It is off and unarmed on every launch. After the user enables it, the controller must first observe an authenticated real phone connection. A later disconnect starts a two-minute reconnect grace, reconnection cancels the pending action, and the grace restarts after a detected suspend/resume gap. After grace, Windows must report 30 seconds of local-input idle time before a single lock attempt for that absence episode. Demo state never arms the feature and RSSI is not used.
 
 Minimal verification per the MVP instruction: the focused Windows Release build passed with 0 warnings/errors, and Android `:app:compileDebugKotlin --offline --no-daemon` passed. Physical device-admin consent/removal, actual lock transitions, sleep/resume, OEM power management, transient route loss and reconnect timing remain deferred. ADR-008 records the approved boundary and safeguards.
+
+### 20 September 2026 — Concurrent BLE + Wi-Fi connections implemented
+
+The user requested Bluetooth and Wi-Fi at the same time. Android already supported one authenticated session of each kind with Wi-Fi application priority. Windows `PhoneStateManager` now mirrors that model: it owns BLE and Wi-Fi independently, preserves phone state while either survives, and reports `Wi-Fi + Bluetooth` when both are ready. Demo mode remains exclusive.
+
+The Windows reconnect coordinator now continues until both remembered routes authenticate and restarts whenever either route is lost. Manual pairing adds a missing route without disconnecting the other. Wi-Fi is the deterministic primary application route; BLE remains connected as warm fallback. State-changing commands are sent exactly once and are never replayed on BLE after an ambiguous Wi-Fi failure. Later commands use BLE if Wi-Fi has ended, while Wi-Fi reconnects in the background. Android now exposes the same per-route status in its Connection card.
+
+No protocol payload, trust identity or Android permission changed. Bulk laptop audio remains on its separate Wi-Fi-only encrypted socket. Minimal verification is limited to focused Windows and Android compilation; physical dual-radio reliability, battery use, Android background policy and handoff timing remain deferred. ADR-009 records the routing policy.
 
 ## Next concrete resume action
 

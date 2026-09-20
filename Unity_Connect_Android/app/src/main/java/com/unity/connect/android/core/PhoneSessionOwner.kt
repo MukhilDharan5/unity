@@ -36,6 +36,9 @@ internal class PhoneSessionOwner(
     val hasSessions: Boolean get() = synchronized(lock) {
         entries.values.any { current(it) && it.job?.isActive == true && it.session != null }
     }
+    fun hasSession(kind: String): Boolean = synchronized(lock) {
+        entries[kind]?.let { current(it) && it.job?.isActive == true && it.session != null } == true
+    }
     private fun current(lease: Lease) =
         !destroyed && accepting && scope.isActive && lease.epoch == epoch && entries[lease.kind] === lease
     fun isCurrent(lease: Lease): Boolean = synchronized(lock) { current(lease) }

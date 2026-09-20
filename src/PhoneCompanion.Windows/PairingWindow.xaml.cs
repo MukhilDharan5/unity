@@ -67,9 +67,14 @@ public partial class PairingWindow : Window
         var trusted = _store.Load();
         try
         {
+            if (_manager.HasConnectedRoute(kind))
+            {
+                SetStatus($"{(kind == TransportKind.Wifi ? "Wi-Fi" : "Bluetooth")} is already connected.");
+                Connected?.Invoke(); Close(); return;
+            }
             SetStatus(kind == TransportKind.Wifi ? "Opening a secure Wi-Fi connection…" : "Looking for your phone…");
             var live = new LivePhoneTransport(kind, open, _store.OpenIdentity(), trusted?.Fingerprint, ApproveAsync);
-            var connected = await _manager.SetTransportAsync(live, _attempt.Token);
+            var connected = await _manager.AddTransportAsync(live, _attempt.Token);
             if (!connected || live.Peer is null) { await live.DisposeAsync(); throw new InvalidOperationException("The phone did not complete pairing."); }
             _store.Save(new TrustedDevice(live.Peer.Fingerprint, live.Peer.Name, endpoint ?? trusted?.WifiEndpoint));
             SetStatus($"Connected to {live.Peer.Name}."); Connected?.Invoke(); Close();

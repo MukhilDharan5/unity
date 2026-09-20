@@ -2,7 +2,7 @@
 
 ## Status
 
-Observed existing baseline; proposed evolution pending user decision. Recorded in Stage 0 on 17 September 2026. This record does not retrospectively claim user approval of the MVP.
+The Stage 0 baseline is historical. Concurrent BLE and Wi-Fi ownership was later approved and implemented in [ADR-009](ADR-009-concurrent-ble-wifi.md) on 20 September 2026.
 
 ## Context
 
@@ -20,4 +20,4 @@ No new architecture is accepted in Stage 0. Retain transport/frame interfaces as
 
 ## Consequences
 
-Core state/features remain independent of radios. Lifecycle changes need production-path cancellation/close tests and power measurements. Simultaneous Windows BLE/LAN sessions, bootstrap format, BLE-only command requirements and secure-channel compatibility must be decided before implementation. Once clients depend on discovery/bootstrap fields or route guarantees, changing them requires coordinated peer/version migration.
+Core state/features remain independent of radios. Lifecycle changes need production-path cancellation/close tests and power measurements. Concurrent Windows BLE/LAN behavior is resolved by ADR-009: both sessions remain authenticated, Wi-Fi is primary, BLE is warm fallback, and ambiguous commands are never replayed. Bootstrap format, BLE-only command requirements and secure-channel compatibility still require coordinated decisions before changes.

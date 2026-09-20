@@ -1,6 +1,6 @@
 # Architecture — audited baseline and proposed foundation
 
-Status: Stage 1A, 1B-W and 1B-A1 complete, 17 September 2026. [CURRENT_STATE.md](../CURRENT_STATE.md) preserves the historical audit; [PROGRESS.md](../PROGRESS.md) records current work. Foundation recommendations beyond the completed checkpoints remain proposed; security/UI migrations are undecided.
+Status: updated through concurrent BLE + Wi-Fi routing on 20 September 2026. [CURRENT_STATE.md](../CURRENT_STATE.md) preserves the historical audit; [PROGRESS.md](../PROGRESS.md) records current work. Foundation recommendations beyond the completed checkpoints remain proposed; security/UI migrations are undecided.
 
 Stage 1A retains both implementations and JSON v1. Android now validates application structure, scalar types, state semantics and canonical UUIDs before command dispatch; platform media text is normalized before encoding. Both test runtimes consume 67 shared application fixtures. Handshake/control validation and lifecycle ownership are separate unfinished work.
 
@@ -13,7 +13,7 @@ The Windows solution contains platform-neutral Core, a WPF/WinForms Windows exec
 ```text
 Windows App composition
   WPF desktop + flyout -> PhoneViewModel
-                         PhoneStateManager (one phone, one active route)
+                         PhoneStateManager (one phone, BLE + Wi-Fi route owners)
                            IPhoneMessageCodec / typed messages
                            IPhoneTransport
                              LivePhoneTransport (production)
@@ -28,7 +28,7 @@ Android Compose -> AppViewModel -> static ConnectionService calls/UI StateFlow
     StateCollector -> combined PhoneSnapshot
     media dispatch / CompanionDndController / ClipboardBridge
     trust preferences + IdentityStore
-    active secure session: Wi-Fi preferred over BLE
+    authenticated BLE + Wi-Fi sessions; Wi-Fi application route preferred
       SecureSession -> FramePipe -> TCP server / GATT server
 ```
 
@@ -36,7 +36,7 @@ There is no privileged Windows service, Credential Provider, cloud server, messa
 
 ## State ownership
 
-Windows `PhoneStateManager` is authoritative for observed remote phone state. Immutable records include nullable battery, media, cellular, DND and sound sections. Disconnect clears them. Snapshots replace all five sections; deltas change one. The manager fences callbacks using a route generation and serializes route changes/commands with a semaphore. UI notifications are dispatched to WPF's UI thread.
+Windows `PhoneStateManager` is authoritative for observed remote phone state. Immutable records include nullable battery, media, cellular, DND and sound sections. It owns at most one authenticated BLE route and one authenticated Wi-Fi route, fences each route independently, and preserves state while either remains connected. Snapshots replace all state sections; deltas change one. Wi-Fi is the deterministic application route and BLE is the warm fallback; commands are serialized and never duplicated across routes. UI notifications are dispatched to WPF's UI thread.
 
 Android combines battery/network/media/sound callbacks and DND `StateFlow` into snapshots. The service holds the latest snapshot plus a separate mutable `UiState`. Local feature preferences, rule state, connection/session state and UI availability are therefore not one unified device-state model yet.
 
@@ -44,9 +44,9 @@ Commands do not optimistically change phone state. A successful write only means
 
 ## Connection behavior
 
-Windows manually selects a LAN endpoint or scans the agreed BLE service and owns one authenticated route at a time. When disconnected from a remembered device it repeatedly tries saved LAN for up to 8 seconds, then BLE for up to 15 seconds, followed by capped backoff. General pairing has a two-minute deadline. BLE scan chooses the first matching advertisement; it does not enumerate and verify all candidates.
+Windows can initially pair through a LAN endpoint or the agreed BLE service. After trust is established, it continues until both the authenticated LAN and BLE routes are connected, retrying whichever route is missing with capped backoff. General pairing has a two-minute deadline. BLE scan chooses the first matching advertisement; identity verification still decides trust.
 
-Android listens on TCP 38471, advertises mDNS and GATT, and can authenticate both kinds of route. Windows uses bounded mDNS discovery for `_phonecomp._tcp.local`, with saved/manual endpoints as fallback; discovery never establishes trust. Android routes application data through Wi-Fi first and BLE second. Windows has no in-session route promotion or independent BLE presence plane. The BLE route currently allows the same 16 KiB logical payloads as LAN.
+Android listens on TCP 38471, advertises mDNS and GATT, and can authenticate both kinds of route. Windows uses bounded mDNS discovery for `_phonecomp._tcp.local`, with saved/manual endpoints as fallback; discovery never establishes trust. Both peers retain BLE and Wi-Fi concurrently, route application data through Wi-Fi first, and promote BLE immediately when Wi-Fi ends. The missing route reconnects in the background. The BLE route currently allows the same 16 KiB logical payloads as LAN, though bulk audio remains on its separate Wi-Fi-only socket.
 
 ## Proposed foundation consolidation
 
