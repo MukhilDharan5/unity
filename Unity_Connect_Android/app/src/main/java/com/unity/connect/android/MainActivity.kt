@@ -134,11 +134,15 @@ fun AppScreen(viewModel: AppViewModel = viewModel()) {
             if (uiState.connectionState != ConnectionState.CONNECTED) {
                 Button(onClick = viewModel::startPairing) { Text("Reconnect") }
             }
-            CompanionControls(uiState, viewModel) {
-                viewModel.associateCurrentAudioDevice { sender ->
-                    associationLauncher.launch(IntentSenderRequest.Builder(sender).build())
-                }
+        }
+
+        CompanionControls(uiState, viewModel) {
+            viewModel.associateCurrentAudioDevice { sender ->
+                associationLauncher.launch(IntentSenderRequest.Builder(sender).build())
             }
+        }
+
+        if (uiState.isPaired) {
             Button(
                 onClick = viewModel::forgetDevice,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
@@ -200,31 +204,36 @@ private fun CompanionControls(uiState: UiState, viewModel: AppViewModel, associa
                 when {
                     uiState.bluetoothAudioName == null -> "No Bluetooth audio device connected"
                     uiState.bluetoothAudioCanRelease -> "One-tap laptop handoff is ready"
+                    Build.VERSION.SDK_INT >= 37 -> "Guided handoff is available · One-tap can be enabled"
                     else -> "Guided laptop handoff is available"
                 },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall
             )
-            if (Build.VERSION.SDK_INT >= 37 && uiState.bluetoothAudioName != null &&
-                !uiState.bluetoothAudioCanRelease) {
-                Button(onClick = associateHeadphones) { Text("Enable one-tap handoff") }
-            }
+            Button(
+                onClick = associateHeadphones,
+                enabled = Build.VERSION.SDK_INT >= 37 && uiState.bluetoothAudioName != null &&
+                    !uiState.bluetoothAudioCanRelease
+            ) { Text(if (uiState.bluetoothAudioCanRelease) "One-tap enabled" else "Enable one-tap handoff") }
         }
     }
 
-    if (uiState.laptopAudioStreaming || uiState.laptopAudioNotice != null) {
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text("Laptop audio", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    uiState.laptopAudioNotice ?: "Playing laptop audio",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                if (uiState.laptopAudioStreaming) {
-                    Button(onClick = viewModel::stopLaptopAudio) { Text("Stop") }
-                }
-            }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Text("Laptop audio", style = MaterialTheme.typography.titleMedium)
+            Text(
+                uiState.laptopAudioNotice ?: when {
+                    uiState.laptopAudioStreaming -> "Playing laptop audio"
+                    uiState.connectionState == ConnectionState.CONNECTED -> "Ready to receive audio from Windows"
+                    else -> "Connect your laptop to receive its audio"
+                },
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
+            Button(
+                onClick = viewModel::stopLaptopAudio,
+                enabled = uiState.laptopAudioStreaming
+            ) { Text("Stop") }
         }
     }
 

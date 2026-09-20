@@ -11,7 +11,6 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="UiResources.xaml" />
             </ResourceDictionary.MergedDictionaries>
-            <BooleanToVisibilityConverter x:Key="VisibleIf" />
             <Style x:Key="SummaryCard" TargetType="Border" BasedOn="{StaticResource Card}">
                 <Setter Property="MinHeight" Value="144" />
                 <Setter Property="Padding" Value="18,16" />
@@ -79,26 +78,26 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Grid Margin="0,0,0,26">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Margin="0,0,20,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel>
                         <TextBlock x:Name="PageTitle" Text="Phone" FontSize="28" FontWeight="SemiBold" />
                         <TextBlock x:Name="PageSubtitle" Text="Phone status and connected experiences." Style="{StaticResource Caption}" Margin="0,6,0,0" />
                     </StackPanel>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <WrapPanel Grid.Row="1" Margin="0,16,0,0">
                         <Button Content="Use phone internet" Style="{StaticResource PrimaryButton}" MinWidth="138" Margin="0,0,10,0"
-                                Command="{Binding UsePhoneInternet}" Visibility="{Binding CanUsePhoneInternet, Converter={StaticResource VisibleIf}}"
+                                Command="{Binding UsePhoneInternet}"
                                 ToolTip="{Binding PhoneInternetDetail}" AutomationProperties.Name="Use phone internet" />
                         <Button Content="{Binding HeadphoneActionText}" Style="{StaticResource ActionButton}" MinWidth="150" Margin="0,0,10,0"
-                                Command="{Binding MoveHeadphones}" Visibility="{Binding HasAudioOutput, Converter={StaticResource VisibleIf}}"
+                                Command="{Binding MoveHeadphones}"
                                 AutomationProperties.Name="Move Bluetooth headphones to laptop" />
                         <Button Content="Open phone" Style="{StaticResource ActionButton}" MinWidth="108" Margin="0,0,10,0"
                                 Command="{Binding OpenPhone}" AutomationProperties.Name="Open phone screen" />
                         <Button Content="Connect phone" Style="{StaticResource PrimaryButton}" MinWidth="120"
                                 Click="OnConnectPhone" AutomationProperties.Name="Connect or manage phone" />
-                    </StackPanel>
+                    </WrapPanel>
                 </Grid>
                 <ScrollViewer x:Name="PhoneScrollViewer" Grid.Row="1" Style="{StaticResource CleanScrollViewer}"
                               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,2">
@@ -156,7 +155,7 @@
                                     </Grid>
                                 </Border>
                             </StackPanel>
-                            <StackPanel Visibility="{Binding IsConnected, Converter={StaticResource VisibleIf}}">
+                            <StackPanel>
                                 <Grid Margin="0,0,0,28">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" /><ColumnDefinition Width="8" />
@@ -175,7 +174,7 @@
                                                 <TextBlock Text="{Binding ChargingText}" Style="{StaticResource Caption}" Margin="0,0,8,0" />
                                                 <ProgressBar Grid.Column="1" Style="{StaticResource BatteryProgress}" Value="{Binding BatteryLevel, Mode=OneWay}" Maximum="100" Height="4" VerticalAlignment="Center"
                                                              Foreground="{DynamicResource Accent}" Background="{DynamicResource SwitchTrack}" BorderThickness="0"
-                                                             Visibility="{Binding HasBattery, Converter={StaticResource VisibleIf}}" AutomationProperties.Name="Phone battery percentage" />
+                                                             AutomationProperties.Name="Phone battery percentage" />
                                             </Grid>
                                         </StackPanel>
                                     </Border>
@@ -260,7 +259,7 @@
                                                 <TextBlock Grid.Column="2" Text="{Binding Sound}" VerticalAlignment="Center" FontWeight="SemiBold" />
                                             </Grid>
                                         </Border>
-                                        <Border Style="{StaticResource SettingRow}" Visibility="{Binding CanControlDndRule, Converter={StaticResource VisibleIf}}">
+                                        <Border Style="{StaticResource SettingRow}">
                                             <Grid>
                                                 <Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                                 <TextBlock Text="&#xE7F4;" Style="{StaticResource Glyph}" />
@@ -275,8 +274,7 @@
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <TextBlock Text="Phone brightness" Style="{StaticResource SectionHeading}" />
-                                        <Border Style="{StaticResource SettingRow}" Margin="0,0,0,28"
-                                                Visibility="{Binding HasPhoneBrightness, Converter={StaticResource VisibleIf}}">
+                                        <Border Style="{StaticResource SettingRow}" Margin="0,0,0,28">
                                             <StackPanel>
                                                 <Grid Margin="0,0,0,12">
                                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>

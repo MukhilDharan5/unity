@@ -170,7 +170,7 @@ internal static class Program
         Check(((TextBlock)desktop.FindName("PageTitle")).Text == "Connection" && connectionButton.Tag?.ToString() == "Selected", "Sidebar selection and page heading agree");
         RenderDesktop(desktop, output, "desktop-connection");
         ((Button)desktop.FindName("PhoneNavigation")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        Check(((StackPanel)desktop.FindName("PhonePage")).Visibility == Visibility.Visible && desktopMedia.Visibility == Visibility.Collapsed, "Phone page restores and clears disconnected media");
+        Check(((StackPanel)desktop.FindName("PhonePage")).Visibility == Visibility.Visible && desktopMedia.Visibility == Visibility.Visible, "Phone page restores the complete disconnected feature view");
         desktop.Show();
         desktop.Close();
         Check(!desktop.IsVisible, "Closing desktop hides it without ending the tray app");

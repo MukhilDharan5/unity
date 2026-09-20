@@ -9,7 +9,6 @@
     <Window.Resources>
         <ResourceDictionary>
         <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="UiResources.xaml" /></ResourceDictionary.MergedDictionaries>
-        <BooleanToVisibilityConverter x:Key="BooleanToVisibility" />
         <Style x:Key="MediaButton" TargetType="Button">
             <Setter Property="Width" Value="44" />
             <Setter Property="Height" Value="44" />
@@ -115,7 +114,6 @@
                            FontSize="12" Margin="0,13,0,0" />
                 <Button Style="{StaticResource PrimaryButton}" Content="Use phone internet" Height="34" MinHeight="0"
                         Padding="12,7" Margin="0,12,0,0" Command="{Binding UsePhoneInternet}"
-                        Visibility="{Binding CanUsePhoneInternet, Converter={StaticResource BooleanToVisibility}}"
                         ToolTip="{Binding PhoneInternetDetail}" AutomationProperties.Name="Use phone internet" />
 
                 <Border x:Name="MediaCard" CornerRadius="13" Background="{DynamicResource SurfaceBackground}"
@@ -164,7 +162,7 @@
                     <TextBlock Grid.Column="2" Text="{Binding Dnd}" Foreground="{DynamicResource SecondaryText}"
                                AutomationProperties.Name="Do Not Disturb state" AutomationProperties.LiveSetting="Polite" />
                 </Grid>
-                <Grid Margin="28,12,1,0" Visibility="{Binding CanControlDndRule, Converter={StaticResource BooleanToVisibility}}">
+                <Grid Margin="28,12,1,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="Companion DND" />
@@ -183,7 +181,7 @@
                     <TextBlock Grid.Column="2" Text="{Binding Sound}" Foreground="{DynamicResource SecondaryText}"
                                AutomationProperties.Name="Phone sound mode" AutomationProperties.LiveSetting="Polite" />
                 </Grid>
-                <StackPanel Visibility="{Binding HasAudioOutput, Converter={StaticResource BooleanToVisibility}}">
+                <StackPanel>
                     <Border Height="1" Background="{DynamicResource Border}" Margin="0,14,0,14" />
                     <Grid Margin="1,0,1,0">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
@@ -210,7 +208,7 @@
                             Tag="{Binding ClipboardEnabled}" Command="{Binding ToggleClipboard}"
                             ToolTip="{Binding ClipboardAction}" AutomationProperties.Name="{Binding ClipboardAction}" />
                 </Grid>
-                <StackPanel Visibility="{Binding HasPhoneBrightness, Converter={StaticResource BooleanToVisibility}}">
+                <StackPanel>
                     <Border Height="1" Background="{DynamicResource Border}" Margin="0,14,0,14" />
                     <Grid Margin="1,0,1,0">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>

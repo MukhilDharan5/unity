@@ -111,11 +111,22 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     public bool CanMoveHeadphones => IsConnected && !IsDemo && _state.AudioOutput is not null;
     public string HeadphoneName => _state.AudioOutput?.DeviceName ?? "Bluetooth headphones";
     public string HeadphoneActionText => $"Move {HeadphoneName} to laptop";
-    public string HeadphoneHandoffDetail => _state.AudioOutput?.CanRelease == true
-        ? "One-tap release is ready on your phone"
-        : "Your phone will guide the disconnect step";
+    public string HeadphoneHandoffDetail => !IsConnected
+        ? "Connect your phone to check its audio output"
+        : _state.AudioOutput switch
+        {
+            null => "No Bluetooth audio device connected",
+            { CanRelease: true } => "One-tap release is ready on your phone",
+            _ => "Your phone will guide the disconnect step"
+        };
     public bool CanUsePhoneInternet => IsConnected && !IsDemo && _internetConnectivity?.HasInternet == false;
-    public string PhoneInternetDetail => "Laptop internet unavailable · Use Android tethering";
+    public string PhoneInternetDetail => !IsConnected
+        ? "Connect your phone to use Android tethering"
+        : IsDemo
+            ? "Unavailable with sample data"
+            : _internetConnectivity?.HasInternet == true
+                ? "Laptop already has internet"
+                : "Laptop internet unavailable · Android tethering can help";
     public bool IsLaptopAudioStreaming => _laptopAudio?.IsStreaming == true;
     public bool CanToggleLaptopAudio => _laptopAudio is not null && (IsLaptopAudioStreaming || IsConnected && !IsDemo);
     public string LaptopAudioActionText => IsLaptopAudioStreaming ? "Stop" : "Play on phone";
@@ -144,10 +155,14 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
             _ = SendPhoneBrightnessAfterDelayAsync(level, _brightnessDebounce.Token);
         }
     }
-    public string PhoneBrightnessText => $"{(int)Math.Round(PhoneBrightnessLevel)}%";
+    public string PhoneBrightnessText => _state.Brightness is null ? "—" : $"{(int)Math.Round(PhoneBrightnessLevel)}%";
     public bool IsPhoneAdaptive => _state.Brightness?.Adaptive == true;
     public string PhoneAdaptiveText => IsPhoneAdaptive ? "Auto" : "Manual";
-    public string PhoneBrightnessAccessText => CanControlPhoneBrightness ? "Control available" : "Allow control in the Android app";
+    public string PhoneBrightnessAccessText => !IsConnected
+        ? "Connect your phone to view and control brightness"
+        : _state.Brightness is null
+            ? "Brightness state unavailable"
+            : CanControlPhoneBrightness ? "Control available" : "Allow control in the Android app";
     public string AmbientLightText => _state.Brightness switch
     {
         { AmbientStatus: AmbientLightStatus.Valid, AmbientLux: double lux } => $"Ambient light · {lux:0.#} lux",

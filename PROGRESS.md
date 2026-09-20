@@ -289,6 +289,14 @@ The user requested that the audio/media player remain visible even when nothing 
 
 No message, permission, playback provider or command behavior changed. Existing Windows smoke expectations were updated to match the persistent presentation. The focused Windows Release build passed with 0 warnings/errors, and Android `:app:compileDebugKotlin --offline --no-daemon` passed; broad rendering and device validation remain deferred under the MVP pacing decision.
 
+### 20 September 2026 — Complete MVP capability UI made persistent
+
+The user requested that everything already implemented remain visible in both apps. The Windows dashboard now renders its phone summaries, media player, DND, sound, brightness, laptop-audio, security and clipboard sections even while disconnected. The flyout likewise keeps phone internet, companion DND, headphone handoff and phone-brightness controls present. Its unavailable actions remain disabled, and status text now distinguishes disconnected, idle, unsupported and already-online states. Dashboard header actions wrap so the expanded set remains usable at narrow widths.
+
+Android now renders the complete companion-control area before pairing and while disconnected. Laptop lock, audio output/handoff, laptop-audio receiver, phone internet, Windows media, companion DND and clipboard cards remain present; pairing, reconnect and forget actions still follow trust state. The laptop-audio card and its disabled stop action no longer disappear while idle, and the one-tap handoff action remains visible with capability gating.
+
+This is a presentation change for existing MVP features. It does not add protocol messages, permissions or new platform capabilities. The focused Windows Release build passed with 0 warnings/errors, and Android `:app:compileDebugKotlin --offline --no-daemon` passed. Broad UI rendering and physical-device validation remain deferred.
+
 ## Next concrete resume action
 
 The master feature sequence is implemented through Stage 16 at MVP scope, with remote unlock intentionally excluded. The next practical coding step is release packaging and install/update polish, followed later by the deferred physical-device shakeout. Stage 9 OEM performance profiles also remains unimplemented and should start with provider feasibility rather than a fake mapping to Windows power plans.
