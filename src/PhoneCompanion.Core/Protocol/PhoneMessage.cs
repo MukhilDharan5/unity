@@ -19,6 +19,8 @@ public sealed record PhoneBrightnessCommandMessage(int? Level, bool? Adaptive) :
 public sealed record DndRuleCommandMessage(bool Active) : PhoneMessage;
 public sealed record HeadphoneHandoffCommandMessage : PhoneMessage;
 public sealed record HotspotRequestCommandMessage : PhoneMessage;
+public sealed record PhoneLockRequestCommandMessage : PhoneMessage;
+public sealed record PcLockRequestMessage : PhoneMessage;
 public sealed record AudioStreamStartCommandMessage(
     Guid StreamId, byte[] Key, byte[] Token, int SampleRate, int Channels) : PhoneMessage;
 public sealed record AudioStreamStopCommandMessage(Guid StreamId) : PhoneMessage;

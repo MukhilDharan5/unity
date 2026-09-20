@@ -1,6 +1,6 @@
 # Android implementation and constraints
 
-Status: updated through the Stage 15 audio MVP, 20 September 2026. Sources are in `Unity_Connect_Android/app/src/main/java/com/unity/connect/android/`. See [PROGRESS.md](../PROGRESS.md) for continuation.
+Status: updated through the Stage 16 lock-only MVP, 20 September 2026. Sources are in `Unity_Connect_Android/app/src/main/java/com/unity/connect/android/`. See [PROGRESS.md](../PROGRESS.md) for continuation.
 
 ## Runtime and UI
 
@@ -41,6 +41,8 @@ Android connected-device foreground services have specific manifest/runtime prer
 An authenticated `hotspot_request` never changes tethering state directly. `HotspotSettings` resolves a system-owned tethering settings activity when available and falls back to Android's public wireless/settings screens. The service exposes that flow through a user-action notification, and the Android app also has a visible **Open tethering settings** button. No password, SSID or tethering state is read or transmitted, and `LocalOnlyHotspot` is not presented as internet access. See [ADR-006](decisions/ADR-006-phone-internet.md).
 
 `LaptopAudioReceiver` handles the laptop-to-phone Stage 15 prototype. After an authenticated start message it opens an ephemeral TCP listener, reports that port over the active secure session, validates the stream's one-use random token, decrypts sequence-checked AES-256-GCM records and writes PCM16 to `AudioTrack`. It requests media audio focus, stops on permanent focus loss/session loss/errors, and exposes a visible Stop action that also tells Windows to end capture. The feature adds no permission and does not capture phone apps, microphones or calls. See [ADR-007](decisions/ADR-007-laptop-audio-streaming.md).
+
+Stage 16 adds a visible **Lock laptop** action and authenticated `pc_lock_request`. Incoming `phone_lock_request` uses `DevicePolicyManager.lockNow()` only after the user approves Android's system device-admin screen. The declared admin policy contains only `<force-lock>`; it cannot reset credentials, wipe data or unlock the phone. The Access card reports and opens this consent. Removing admin access makes the command unavailable immediately. A configured secure Android screen lock is still required for credential protection; Unity Connect never creates or handles it. See [ADR-008](decisions/ADR-008-cross-device-locking.md).
 
 When phone-state access is available, `TelephonyCallback` reports data-network generation, 5G display overrides and normalized signal-strength changes. Default-network callbacks independently report whether Wi-Fi or mobile data is active. Missing permission keeps radio details unknown while preserving available connection-route state. Multi-SIM behavior still follows Android's default `TelephonyManager` and needs physical-device validation.
 

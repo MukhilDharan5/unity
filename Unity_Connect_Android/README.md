@@ -21,6 +21,7 @@ The minimum supported version is Android 12/API 31. API 31 provides the nearby-d
 - Effective DND reporting plus an app-owned `AutomaticZenRule` condition controlled separately from manual/global DND.
 - Normal/vibrate/silent reporting.
 - Opt-in, text-only clipboard transfer with no history. Android reads its clipboard only after a visible **Send current clipboard** tap.
+- Explicit **Lock laptop** control and optional system-approved device-admin `force-lock` support for Windows-to-phone lock requests; no remote unlock.
 - Matching version 1 logical JSON messages for the Windows codec.
 - Live BLE peripheral and LAN server connections with mutual identity proofs, a code confirmed on both devices, AES-256-GCM records, and replay rejection.
 

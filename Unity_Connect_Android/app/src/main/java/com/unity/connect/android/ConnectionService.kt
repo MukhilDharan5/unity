@@ -23,6 +23,7 @@ import com.unity.connect.android.clipboard.ClipboardBridge
 import com.unity.connect.android.core.*
 import com.unity.connect.android.dnd.CompanionDndController
 import com.unity.connect.android.lan.LanServer
+import com.unity.connect.android.security.DeviceLockController
 import com.unity.connect.android.state.StateCollector
 import com.unity.connect.android.state.BrightnessController
 import com.unity.connect.android.state.BluetoothAudioMonitor
@@ -43,7 +44,8 @@ data class AccessState(
     val phoneState: Boolean = false,
     val mediaSessions: Boolean = false,
     val dndPolicy: Boolean = false,
-    val brightnessControl: Boolean = false
+    val brightnessControl: Boolean = false,
+    val deviceLock: Boolean = false
 )
 data class UiState(
     val isPaired: Boolean = false,
@@ -79,6 +81,7 @@ class ConnectionService : Service() {
         fun sendCurrentClipboard() { instance?.sendClipboard() }
         fun sendPcMediaCommand(command: String) { instance?.sendPcMediaCommand(command) }
         fun stopLaptopAudio() { instance?.stopLaptopAudio() }
+        fun lockLaptop() { instance?.lockLaptop() }
         fun setCompanionDndActive(active: Boolean) { instance?.dnd?.setCompanionRuleActive(active) }
         fun refreshDndState() { instance?.apply {
             dnd.refresh(); bluetoothAudio.refresh(); refreshAccessState(); refreshAddress(); restartCollector()
@@ -99,6 +102,7 @@ class ConnectionService : Service() {
     private lateinit var brightness: BrightnessController
     private lateinit var bluetoothAudio: BluetoothAudioMonitor
     private lateinit var laptopAudio: LaptopAudioReceiver
+    private lateinit var deviceLock: DeviceLockController
     private val prefs by lazy { getSharedPreferences("secure_peers_v1", MODE_PRIVATE) }
     private val identity by lazy { IdentityStore.load() }
     private val owner = PhoneSessionOwner(scope) { scope.launch { onSessionsChanged() } }
@@ -113,6 +117,7 @@ class ConnectionService : Service() {
     private var bleRetryAttempt = 0
     private var lanRetryAttempt = 0
     private var pcMediaCommand: Job? = null
+    private var lockCommand: Job? = null
     @Volatile private var bleEpoch = 0L
     @Volatile private var lanEpoch = 0L
     private var networkCallbackRegistered = false
@@ -149,6 +154,7 @@ class ConnectionService : Service() {
         dnd = CompanionDndController(this)
         brightness = BrightnessController(this)
         bluetoothAudio = BluetoothAudioMonitor(this)
+        deviceLock = DeviceLockController(this)
         clipboard = ClipboardBridge(this)
         collector = StateCollector(this, dnd, brightness, bluetoothAudio)
         collection = PhoneStateCollection(scope, owner, collector.phoneState)
@@ -328,7 +334,8 @@ class ConnectionService : Service() {
             phoneState = granted(Manifest.permission.READ_PHONE_STATE),
             mediaSessions = NotificationManagerCompat.getEnabledListenerPackages(this).contains(packageName),
             dndPolicy = getSystemService(NotificationManager::class.java).isNotificationPolicyAccessGranted,
-            brightnessControl = android.provider.Settings.System.canWrite(this)
+            brightnessControl = android.provider.Settings.System.canWrite(this),
+            deviceLock = deviceLock.enabled
         )
     }
     @SuppressLint("ApplySharedPref") // Trust must reach disk before the UI exposes the paired session.
@@ -439,6 +446,9 @@ class ConnectionService : Service() {
             is IncomingMessage.AudioStreamStart -> laptopAudio.start(message)
             is IncomingMessage.AudioStreamStop -> laptopAudio.stop(message.streamId)
             is IncomingMessage.ClipboardUpdate -> if (clipboard.enabled) clipboard.applyIncoming(message.content)
+            IncomingMessage.PhoneLockRequest -> if (!deviceLock.lockNow()) state.update {
+                it.copy(featureNotice = "Allow device lock access in the Android app first.")
+            }
             null -> Unit
         }
     }
@@ -509,6 +519,18 @@ class ConnectionService : Service() {
             sendActive(MessageCodec.encodeAudioStreamStop(streamId).toByteArray(Charsets.UTF_8))
         }
     }
+    private fun lockLaptop() {
+        if (owner.active() == null || lockCommand?.isActive == true) return
+        val generation = owner.generation
+        lockCommand = scope.launch {
+            try {
+                val sent = sendActive(MessageCodec.encodePcLockRequest().toByteArray(Charsets.UTF_8))
+                if (owner.isCurrentGeneration(generation)) state.update {
+                    it.copy(featureNotice = if (sent) "Laptop lock requested." else "Laptop lock request could not be sent.")
+                }
+            } finally { lockCommand = null }
+        }
+    }
     private fun sendClipboard() {
         if (owner.active() == null || !clipboard.enabled) {
             state.update { it.copy(featureNotice = "Connect your laptop and turn clipboard sync on first.") }; return
@@ -529,6 +551,7 @@ class ConnectionService : Service() {
         pairingUntil = 0; consent?.complete(false); consent = null
         pairingExpiry?.cancel(); pairingExpiry = null
         pcMediaCommand?.cancel(); pcMediaCommand = null
+        lockCommand?.cancel(); lockCommand = null
         prefs.edit().clear().commit()
         clipboard.updateEnabled(false)
         laptopAudio.stop()
@@ -553,6 +576,7 @@ class ConnectionService : Service() {
         instance = null
         unregisterRuntimeSignals()
         owner.close(); stopCollector(); pcMediaCommand?.cancel(); pcMediaCommand = null
+        lockCommand?.cancel(); lockCommand = null
         laptopAudio.close()
         bluetoothAudio.close()
         pairingExpiry?.cancel(); pairingExpiry = null

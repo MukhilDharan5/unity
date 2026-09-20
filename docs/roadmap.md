@@ -1,6 +1,6 @@
 # Incremental roadmap
 
-Status: Stage 0 and the MVP-essential Stage 1 checkpoints are complete through 19 September 2026. Structured diagnostics, broad validation and release hardening remain deferred under the MVP pacing decision. [PROGRESS.md](../PROGRESS.md) defines the next checkpoint. Existing code already contains parts of pairing, transport, state, UI, media, DND and clipboard, so later phases validate/refine them rather than pretend they are absent.
+Status: the planned MVP feature sequence is implemented through the approved Stage 16 lock-only scope as of 20 September 2026. Structured diagnostics, broad validation and release hardening remain deferred under the MVP pacing decision. [PROGRESS.md](../PROGRESS.md) defines the next checkpoint. Existing code already contains parts of pairing, transport, state, UI, media, DND and clipboard, so later phases validate/refine them rather than pretend they are absent.
 
 ## Stage 0 — Audit (complete)
 
@@ -34,6 +34,6 @@ Constraints: Android foreground/background policy and clipboard privacy, optiona
 | 13 — Headphone handoff (MVP implemented, validation deferred) | Optional audio-output state, authenticated handoff request, API 37+ Companion Device association/public release, guided fallback, Windows settings launch and isolated optional ADB accelerator | Physical API 37/older-device/headset validation remains; Windows still requires device selection; Shizuku excluded |
 | 14 — Phone internet (MVP implemented, validation deferred) | Windows internet-status gate, authenticated explicit request, Android system tethering notification/button, Windows saved-network settings flow and isolated optional ADB settings accelerator | No silent tether toggle, credential exchange or assumed Samsung routine API; physical/OEM validation remains |
 | 15 — Audio (MVP implemented, validation deferred) | Explicitly confirmed Windows WASAPI loopback capture streams encrypted PCM over a separate Wi-Fi socket to Android `AudioTrack`; either app can stop it | No phone capture, calls, DRM guarantee, codec/resampling, route migration or low-latency claim; measure latency/battery on devices |
-| 16 — Advanced security | Separately approved time/state-based lock safeguards and Credential Provider feasibility/security research | No fake unlock; biometric challenge response alone does not prove Windows authentication integration |
+| 16 — Advanced security (lock-only MVP implemented, validation deferred) | Authenticated explicit lock requests in both directions plus session-only, time/state/idle-gated Windows phone-absence lock; Credential Provider boundary documented | No remote unlock, Credential Provider or biometric claim; physical sleep/reconnect/OEM behavior requires validation |
 
 Do not silently start another major phase. Each phase must state objective/scope/deferred work/constraints before implementation and report changes, files, tests, limitations, technical debt, documentation and next decisions afterward. If scope changes substantially, revise the plan and obtain the relevant major decision first.

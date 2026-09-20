@@ -17,6 +17,14 @@ This versioned logical protocol is implemented by the Windows codec and the Andr
 
 ## Phone → Windows
 
+Android can request that the current interactive Windows session lock through a fieldless message:
+
+```json
+{"version":1,"type":"pc_lock_request"}
+```
+
+Windows accepts it only from the authenticated active non-demo session and calls the documented workstation-lock API. It carries no credential or unlock result.
+
 Battery percentage is an integer from 0 through 100. Charging is a required Boolean.
 
 ```json
@@ -98,6 +106,14 @@ The optional `audioOutput` section reports the first connected Android A2DP outp
 For example, clearing battery availability in v1 requires a snapshot with `battery:null` and the current values (or `null`) for the other sections. There is no implicit expiry duration in v1. Each future transport's reviewed liveness mechanism must report disconnection; Windows then clears all values immediately.
 
 ## Windows → phone
+
+Windows can request Android's normal secure lock through a fieldless message:
+
+```json
+{"version":1,"type":"phone_lock_request"}
+```
+
+Android accepts it only from the authenticated active session and performs it only while the user-approved device administrator with the narrow `force-lock` policy is active. It does not configure, transmit, or bypass the phone credential.
 
 Media controls use this message:
 

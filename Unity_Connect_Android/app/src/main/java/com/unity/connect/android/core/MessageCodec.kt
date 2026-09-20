@@ -93,6 +93,10 @@ object MessageCodec {
     fun encodeSoundMessage(message: SoundMessage): String = encodeApplication(message)
     fun encodeMediaCommand(command: MediaCommand): String = encodeApplication(command)
     fun encodePcMediaCommand(command: String): String = encodeApplication(PcMediaCommand(command))
+    fun encodePcLockRequest(): String = buildJsonObject {
+        put("version", VERSION)
+        put("type", "pc_lock_request")
+    }.toString().also { V1MessageValidator.validate(V1MessageValidator.parse(it)) }
     fun encodeAudioSinkReady(streamId: String, port: Int): String = buildJsonObject {
         put("version", VERSION)
         put("type", "audio_sink_ready")

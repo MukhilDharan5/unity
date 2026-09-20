@@ -12,6 +12,7 @@ using PhoneCompanion.Windows.Brightness;
 using PhoneCompanion.Windows.Clipboard;
 using PhoneCompanion.Windows.Connection;
 using PhoneCompanion.Windows.Media;
+using PhoneCompanion.Windows.Security;
 using PhoneCompanion.Windows.ViewModels;
 
 namespace PhoneCompanion.Windows;
@@ -34,6 +35,7 @@ public partial class App : Application
     private InternetConnectivityMonitor? _internetConnectivity;
     private LaptopAdaptiveBrightnessController? _laptopBrightness;
     private LaptopAudioStreamer? _laptopAudio;
+    private ProximityLockController? _proximityLock;
     private PairingWindow? _pairing;
     private readonly IdentityAndTrustStore _connectionStore = new();
     private CancellationTokenSource? _reconnect;
@@ -56,6 +58,8 @@ public partial class App : Application
         _manager = new PhoneStateManager(_codec);
         _manager.StateChanged += OnPhoneStateChanged;
         _manager.PcMediaCommandReceived += OnPcMediaCommandReceived;
+        _manager.PcLockRequested += OnPcLockRequested;
+        _proximityLock = new ProximityLockController(_manager);
         _windowsMedia = await WindowsMediaController.CreateAsync();
         _windowsMedia.StateChanged += OnWindowsMediaChanged;
         _phoneScreen = new PhoneScreenLauncher();
@@ -65,7 +69,7 @@ public partial class App : Application
         _laptopAudio = new LaptopAudioStreamer(_manager, _connectionStore);
         _clipboard = new ClipboardSyncCoordinator(_manager, new WindowsClipboardService(Dispatcher), Dispatcher);
         _viewModel = new PhoneViewModel(_manager, Dispatcher, _clipboard, _phoneScreen.Open, _laptopBrightness,
-            _androidSettings, _internetConnectivity, _laptopAudio);
+            _androidSettings, _internetConnectivity, _laptopAudio, _proximityLock);
         _flyout = new FlyoutWindow { DataContext = _viewModel };
         _desktop = new MainWindow { DataContext = _viewModel };
         MainWindow = _desktop;
@@ -109,6 +113,11 @@ public partial class App : Application
     {
         if (_exiting || _windowsMedia is null) return;
         Dispatcher.BeginInvoke(async () => await _windowsMedia.ExecuteAsync(command));
+    }
+    private void OnPcLockRequested()
+    {
+        if (_exiting) return;
+        Dispatcher.BeginInvoke(() => WindowsWorkstationLock.TryLock());
     }
     private async Task PublishWindowsMediaAsync(PhoneCompanion.Core.Models.MediaState? state)
     {
@@ -224,10 +233,15 @@ public partial class App : Application
         _tray?.Dispose(); _tray = null;
         _theme?.Dispose(); _theme = null;
         _viewModel?.Dispose();
+        _proximityLock?.Dispose(); _proximityLock = null;
         if (_laptopAudio is not null) { await _laptopAudio.DisposeAsync(); _laptopAudio = null; }
         _internetConnectivity?.Dispose(); _internetConnectivity = null;
         if (_laptopBrightness is not null) { await _laptopBrightness.DisposeAsync(); _laptopBrightness = null; }
-        if (_manager is not null) _manager.PcMediaCommandReceived -= OnPcMediaCommandReceived;
+        if (_manager is not null)
+        {
+            _manager.PcMediaCommandReceived -= OnPcMediaCommandReceived;
+            _manager.PcLockRequested -= OnPcLockRequested;
+        }
         if (_windowsMedia is not null) { _windowsMedia.StateChanged -= OnWindowsMediaChanged; _windowsMedia.Dispose(); _windowsMedia = null; }
         _pairing?.Close(); _pairing = null;
         _clipboard?.Dispose(); _clipboard = null;
@@ -243,12 +257,14 @@ public partial class App : Application
         _tray?.Dispose();
         _theme?.Dispose();
         _viewModel?.Dispose();
+        _proximityLock?.Dispose(); _proximityLock = null;
         _laptopAudio?.Dispose(); _laptopAudio = null;
         _internetConnectivity?.Dispose(); _internetConnectivity = null;
         _laptopBrightness?.Dispose(); _laptopBrightness = null;
         _clipboard?.Dispose();
         if (_manager is not null) _manager.StateChanged -= OnPhoneStateChanged;
         if (_manager is not null) _manager.PcMediaCommandReceived -= OnPcMediaCommandReceived;
+        if (_manager is not null) _manager.PcLockRequested -= OnPcLockRequested;
         if (_windowsMedia is not null) { _windowsMedia.StateChanged -= OnWindowsMediaChanged; _windowsMedia.Dispose(); _windowsMedia = null; }
         StopReconnectLoop();
         _showSignal?.Dispose();

@@ -1,6 +1,6 @@
 # Project progress and resume log
 
-Last updated: 20 September 2026. **MVP feature work is continuing on the isolated encrypted v1 channel.** Automatic authenticated LAN discovery, reconnect, Android access state, phone sensors, opt-in laptop adaptive brightness and laptop-to-phone audio streaming are complete. Detailed diagnostics and broad validation are deferred.
+Last updated: 20 September 2026. **The planned MVP feature sequence is implemented through the approved Stage 16 lock-only scope on the isolated encrypted v1 channel.** Automatic authenticated LAN discovery, reconnect, Android access state, phone sensors, opt-in laptop adaptive brightness, laptop-to-phone audio streaming and bidirectional device locking are complete. Detailed diagnostics and broad validation are deferred.
 
 ## Current instructions
 
@@ -265,8 +265,18 @@ Minimal verification per the MVP instruction: the focused Windows Release build 
 
 Known MVP limits: raw PCM consumes more bandwidth/power than a codec; there is no resampling, compression, jitter adaptation or route migration. Formats above stereo are rejected. This stage does not implement phone-to-laptop audio, call/microphone capture, per-app Windows selection, a DRM guarantee or a low-latency claim. ADR-007 records the architecture and limits.
 
+### 20 September 2026 — Stage 16 cross-device lock-only MVP completed
+
+The user approved lock-only behavior in both directions and explicitly excluded phone-assisted unlock. Windows now exposes **Lock phone** in the dashboard and flyout and sends the authenticated fieldless `phone_lock_request`. Android handles it only through a user-enabled device administrator whose XML declares the single `force-lock` policy. The Android Access card shows that state and opens the system-owned consent screen. Unity Connect does not create, read, reset or bypass the Android credential.
+
+Android now exposes **Lock laptop** while connected and sends the authenticated fieldless `pc_lock_request`. The interactive Windows app handles it with the documented `LockWorkStation` API. Neither direction sends an acknowledgment that could imply a completed lock, and neither command carries a credential, biometric result, reusable unlock token or other unlock material.
+
+Windows also includes a session-only **Lock Windows when phone is away** option. It is off and unarmed on every launch. After the user enables it, the controller must first observe an authenticated real phone connection. A later disconnect starts a two-minute reconnect grace, reconnection cancels the pending action, and the grace restarts after a detected suspend/resume gap. After grace, Windows must report 30 seconds of local-input idle time before a single lock attempt for that absence episode. Demo state never arms the feature and RSSI is not used.
+
+Minimal verification per the MVP instruction: the focused Windows Release build passed with 0 warnings/errors, and Android `:app:compileDebugKotlin --offline --no-daemon` passed. Physical device-admin consent/removal, actual lock transitions, sleep/resume, OEM power management, transient route loss and reconnect timing remain deferred. ADR-008 records the approved boundary and safeguards.
+
 ## Next concrete resume action
 
-Stage 15 is implemented at MVP scope for laptop-to-phone audio. The next planned stage is Stage 16 advanced security. Do not start it automatically: discuss the exact lock/security objective, threat model and Windows Credential Provider boundary with the user before coding because a wrong design could create a false unlock-security claim.
+The master feature sequence is implemented through Stage 16 at MVP scope, with remote unlock intentionally excluded. The next practical coding step is release packaging and install/update polish, followed later by the deferred physical-device shakeout. Stage 9 OEM performance profiles also remains unimplemented and should start with provider feasibility rather than a fake mapping to Windows power plans.
 
 Do not repeat Stage 0 or migrate TLS/WinUI without a new explicit decision. Preserve the Windows UI and Android root build/helper edits. The user authorized the repository snapshot and GitHub push recorded above.

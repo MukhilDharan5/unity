@@ -64,6 +64,12 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
             case HotspotRequestCommandMessage:
                 root["type"] = "hotspot_request";
                 break;
+            case PhoneLockRequestCommandMessage:
+                root["type"] = "phone_lock_request";
+                break;
+            case PcLockRequestMessage:
+                root["type"] = "pc_lock_request";
+                break;
             case AudioStreamStartCommandMessage m:
                 root["type"] = "audio_stream_start";
                 root["streamId"] = m.StreamId.ToString("D");
@@ -124,6 +130,8 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
                 "dnd_rule_command" => new DndRuleCommandMessage(Bool(r, "active")),
                 "headphone_handoff" => new HeadphoneHandoffCommandMessage(),
                 "hotspot_request" => new HotspotRequestCommandMessage(),
+                "phone_lock_request" => new PhoneLockRequestCommandMessage(),
+                "pc_lock_request" => new PcLockRequestMessage(),
                 "audio_stream_start" => ReadAudioStreamStart(r),
                 "audio_stream_stop" => new AudioStreamStopCommandMessage(ReadGuid(r, "streamId")),
                 "audio_sink_ready" => ReadAudioSinkReady(r),

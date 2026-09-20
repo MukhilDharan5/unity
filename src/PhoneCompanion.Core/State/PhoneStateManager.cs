@@ -23,6 +23,7 @@ public sealed class PhoneStateManager(IPhoneMessageCodec codec) : IAsyncDisposab
     public event Action<MediaCommand>? PcMediaCommandReceived;
     public event Action<AudioSinkReadyMessage>? AudioSinkReadyReceived;
     public event Action<Guid>? AudioStreamStopReceived;
+    public event Action? PcLockRequested;
 
     public async Task<bool> SetTransportAsync(IPhoneTransport? transport, CancellationToken cancellationToken = default)
     {
@@ -104,6 +105,11 @@ public sealed class PhoneStateManager(IPhoneMessageCodec codec) : IAsyncDisposab
             if (decoded.Message is AudioStreamStopCommandMessage audioStop)
             {
                 if (_current.Transport != TransportKind.Mock) AudioStreamStopReceived?.Invoke(audioStop.StreamId);
+                return;
+            }
+            if (decoded.Message is PcLockRequestMessage)
+            {
+                if (_current.Transport != TransportKind.Mock) PcLockRequested?.Invoke();
                 return;
             }
             var next = decoded.Message switch
@@ -260,13 +266,16 @@ public sealed class PhoneStateManager(IPhoneMessageCodec codec) : IAsyncDisposab
         finally { _operations.Release(); }
     }
     public Task<CommandResult> StartAudioStreamAsync(AudioStreamStartCommandMessage request,
-        CancellationToken cancellationToken = default) => SendAudioMessageAsync(request, cancellationToken);
+        CancellationToken cancellationToken = default) => SendConnectedMessageAsync(request, cancellationToken);
 
     public Task<CommandResult> StopAudioStreamAsync(Guid streamId,
         CancellationToken cancellationToken = default) =>
-        SendAudioMessageAsync(new AudioStreamStopCommandMessage(streamId), cancellationToken);
+        SendConnectedMessageAsync(new AudioStreamStopCommandMessage(streamId), cancellationToken);
 
-    private async Task<CommandResult> SendAudioMessageAsync(PhoneMessage message, CancellationToken cancellationToken)
+    public Task<CommandResult> RequestPhoneLockAsync(CancellationToken cancellationToken = default) =>
+        SendConnectedMessageAsync(new PhoneLockRequestCommandMessage(), cancellationToken);
+
+    private async Task<CommandResult> SendConnectedMessageAsync(PhoneMessage message, CancellationToken cancellationToken)
     {
         if (!await _operations.WaitAsync(0, cancellationToken).ConfigureAwait(false)) return CommandResult.Unavailable;
         try

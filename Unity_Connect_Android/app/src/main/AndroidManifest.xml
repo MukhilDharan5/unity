@@ -42,6 +42,20 @@
                  android:foregroundServiceType="connectedDevice"
                  android:exported="false" />
 
+        <receiver
+            android:name=".security.UnityDeviceAdminReceiver"
+            android:label="@string/device_admin_label"
+            android:description="@string/device_admin_description"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
+            android:exported="true">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".dnd.CompanionDndConditionProvider"
             android:exported="true"

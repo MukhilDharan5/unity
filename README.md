@@ -1,6 +1,6 @@
 # Phone Companion
 
-The [progress and resume log](PROGRESS.md) records the current MVP checkpoint: automatic LAN discovery, reconnect/lifecycle coordination, live phone status, bidirectional media control, optional scrcpy launch, phone brightness/light sensing, opt-in laptop adaptive brightness, public/assisted headphone handoff, phone-internet assistance, laptop-to-phone audio streaming, explicit Android access state, portable Android builds and typed connection policy are implemented. Work is proceeding implementation-first with minimal compile checks; broad validation is deferred. The [Stage 0 audit](CURRENT_STATE.md) is the historical assessment. The current encrypted v1 channel is the accepted interim MVP direction; any compatibility-changing security migration remains a separate post-MVP decision.
+The [progress and resume log](PROGRESS.md) records the current MVP checkpoint: automatic LAN discovery, reconnect/lifecycle coordination, live phone status, bidirectional media control, optional scrcpy launch, phone brightness/light sensing, opt-in laptop adaptive brightness, public/assisted headphone handoff, phone-internet assistance, laptop-to-phone audio streaming, bidirectional device locking, explicit Android access state, portable Android builds and typed connection policy are implemented. Work is proceeding implementation-first with minimal compile checks; broad validation is deferred. The [Stage 0 audit](CURRENT_STATE.md) is the historical assessment. The current encrypted v1 channel is the accepted interim MVP direction; any compatibility-changing security migration remains a separate post-MVP decision.
 
 A Windows desktop control app with a compact tray flyout and an Android companion. The two apps pair over BLE or Wi-Fi/LAN, verify a six-digit code, remember the approved device identity, and protect every application message with an authenticated encrypted session.
 
@@ -20,6 +20,8 @@ The resizable desktop window provides Phone and Connection pages for the same ex
 The sample is explicitly labeled **Sample** and **Sample data · No phone connected**. Previous/next cycle through three fictional sample tracks; play/pause changes sample playback. These controls use the same codec and state manager as the BLE and Wi-Fi paths. No sample values are presented as real phone data. The sample choice is not persisted.
 
 The flyout follows the Windows app theme while running: white with black text in light mode, near-black with white text in dark mode, and light-blue accents in both. The media player appears only while audio is playing on the phone. Escape, clicking outside, and Alt+F4 dismiss the flyout while keeping the tray app running. Use Exit to release it. Media buttons have keyboard focus, tooltips, and accessible labels. Effective DND and sound remain truthful phone-state labels; a separate **Companion DND** switch controls only the Android app's own automatic rule. The clipboard switch is off by default and handles new plain text only, with no history.
+
+Each app can explicitly lock its trusted peer. Android requires a one-time system device-admin approval limited to force-lock before Windows can lock the phone. Windows also has a session-only **Lock Windows when phone is away** option with a two-minute reconnect grace and local-idle gate. It is off on every launch and arms only after a real authenticated phone connection. Unlock always uses the device's normal sign-in.
 
 ## Build and verify
 
@@ -59,6 +61,7 @@ UI checks instantiate the actual XAML, view model and tray controller, exercise 
 | Bluetooth audio | Reports the current Android A2DP output; Windows requests release, opens Bluetooth settings, and can optionally foreground the phone flow through an authorized ADB installation |
 | Phone internet | When Windows reports no internet, an explicit action requests Android tethering settings and opens Windows Wi-Fi for a saved hotspot; optional ADB only foregrounds the phone settings screen |
 | Laptop audio on phone | Explicitly confirmed Windows WASAPI loopback capture, separately encrypted Wi-Fi PCM stream, Android `AudioTrack` playback, and stop controls on both devices |
+| Device locking | Explicit authenticated lock requests in both directions; optional session-only Windows proximity lock with reconnect and idle safeguards; no remote unlock |
 | Companion DND | App-owned Android `AutomaticZenRule`; Windows control never changes manual/global DND directly |
 | Clipboard | Opt-in new-text sync, 12 KiB limit, loop suppression, no stored history; Android sends only on a visible user action |
 | Message layer | JSON v1 behind `IPhoneMessageCodec`; authenticated encryption and replay rejection below it |
@@ -96,6 +99,6 @@ docs/SECURE-SESSION-v1.md        Exact implemented handshake and encrypted recor
 docs/VALIDATION.md               Verified checks and remaining hardware validation
 ```
 
-Silent hotspot toggling, phone-to-laptop audio, file transfer, computer monitoring, and clipboard history are not included. scrcpy and the narrow ADB settings accelerator remain optional local tools outside the companion transport.
+Silent hotspot toggling, remote device unlock, phone-to-laptop audio, file transfer, computer monitoring, and clipboard history are not included. scrcpy and the narrow ADB settings accelerator remain optional local tools outside the companion transport.
 
 Windows implementation references: [Microsoft NotifyIcon overview](https://learn.microsoft.com/en-us/dotnet/desktop/winforms/controls/notifyicon-component-overview-windows-forms) and [Microsoft BLE advertisement watcher documentation](https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.advertisement.bluetoothleadvertisementwatcher).

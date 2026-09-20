@@ -324,6 +324,34 @@
                                                         AutomationProperties.Name="{Binding LaptopAudioActionText}" VerticalAlignment="Center" />
                                             </Grid>
                                         </Border>
+                                        <TextBlock Text="Security" Style="{StaticResource SectionHeading}" />
+                                        <Border Style="{StaticResource SettingRow}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                <TextBlock Text="&#xE72E;" Style="{StaticResource Glyph}" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
+                                                    <TextBlock Text="Lock phone" Style="{StaticResource SettingTitle}" />
+                                                    <TextBlock Text="Uses Android’s normal secure lock" Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                                                </StackPanel>
+                                                <Button Grid.Column="2" Style="{StaticResource ActionButton}" Content="Lock"
+                                                        Command="{Binding LockPhone}" IsEnabled="{Binding CanLockPhone}"
+                                                        AutomationProperties.Name="Lock trusted phone" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                        <Border Style="{StaticResource SettingRow}" Margin="0,0,0,28">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                <TextBlock Text="&#xE7F5;" Style="{StaticResource Glyph}" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
+                                                    <TextBlock Text="Lock Windows when phone is away" Style="{StaticResource SettingTitle}" />
+                                                    <TextBlock Text="{Binding ProximityLockStatus}" Style="{StaticResource Caption}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                                <Button Grid.Column="2" Style="{StaticResource SyncSwitch}" Tag="{Binding IsProximityLockEnabled}"
+                                                        Command="{Binding ToggleProximityLock}" ToolTip="{Binding ProximityLockAction}"
+                                                        AutomationProperties.Name="{Binding ProximityLockAction}" AutomationProperties.HelpText="{Binding ProximityLockStatus}"
+                                                        VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
                                         <TextBlock Text="Clipboard" Style="{StaticResource SectionHeading}" />
                                         <Border Style="{StaticResource SettingRow}">
                                             <Grid>

@@ -44,6 +44,10 @@ class AppViewModel : ViewModel() {
         ConnectionService.stopLaptopAudio()
     }
 
+    fun lockLaptop() {
+        ConnectionService.lockLaptop()
+    }
+
     fun setCompanionDndActive(active: Boolean) {
         ConnectionService.setCompanionDndActive(active)
     }

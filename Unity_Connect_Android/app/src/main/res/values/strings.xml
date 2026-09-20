@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Unity Connect</string>
+    <string name="device_admin_label">Unity Connect device lock</string>
+    <string name="device_admin_description">Allows your trusted laptop to lock this phone. It cannot unlock, reset, or erase the phone.</string>
 </resources>

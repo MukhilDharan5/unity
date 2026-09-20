@@ -32,6 +32,7 @@ internal object V1MessageValidator {
             "dnd_rule_command" -> boolean(root, "active")
             "headphone_handoff" -> Unit
             "hotspot_request" -> Unit
+            "phone_lock_request", "pc_lock_request" -> Unit
             "audio_stream_start" -> audioStreamStart(root)
             "audio_stream_stop" -> streamId(root)
             "audio_sink_ready" -> audioSinkReady(root)
@@ -69,6 +70,7 @@ internal object V1MessageValidator {
         "dnd_rule_command" -> IncomingMessage.DndRuleCommand(boolean(root, "active"))
         "headphone_handoff" -> IncomingMessage.HeadphoneHandoff
         "hotspot_request" -> IncomingMessage.HotspotRequest
+        "phone_lock_request" -> IncomingMessage.PhoneLockRequest
         "audio_stream_start" -> audioStreamStart(root)
         "audio_stream_stop" -> IncomingMessage.AudioStreamStop(streamId(root))
         "clipboard" -> IncomingMessage.ClipboardUpdate(clipboard(root))

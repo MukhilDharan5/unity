@@ -1,6 +1,6 @@
 # Capability inventory
 
-Status: observed implementation, 17 September 2026. “Implemented” means code exists; physical-device readiness is not established. There is no general capability-negotiation message in v1.
+Status: observed implementation, 20 September 2026. “Implemented” means code exists; physical-device readiness is not established. There is no general capability-negotiation message in v1.
 
 ## Current capability facts
 
@@ -21,7 +21,7 @@ Status: observed implementation, 17 September 2026. “Implemented” means code
 | Headphone handoff | Authenticated request; API 37+ public release or guided Bluetooth-settings flow | Explicit Companion Device association for direct release; optional authorized ADB only accelerates opening settings | Windows still needs user selection; Android 12–16 and unassociated headsets require a phone action; Shizuku excluded |
 | Phone internet | Explicit Windows request -> Android user-assisted tether settings; Windows saved-network Wi-Fi flow | Real connected peer plus Windows reporting no internet; optional authorized ADB only opens settings | No silent toggle, SSID/password exchange or `LocalOnlyHotspot`; OEM/settings/runtime validation remains |
 | Audio streaming | Laptop -> phone PCM prototype over a separate encrypted Wi-Fi socket | Explicit Windows confirmation, authenticated companion session, reachable LAN, current mono/stereo Windows output | DRM/call audio excluded; no phone capture, codec, route migration, or measured latency/battery behavior |
-| PC activity/lock/unlock | Absent | None | Privacy policy; lock safeguards; separate unlock security project |
+| Device lock | Explicit phone <-> Windows requests; optional phone-absence Windows lock | Authenticated real session; Android user-approved force-lock admin; Windows proximity option is session-only, grace/idle gated, and must first observe a trusted connection | Physical sleep/reconnect/OEM validation; unlock remains a separate security project |
 
 Nullable data is distinct from unsupported functionality. Battery unavailable is not 0%; no media session and missing notification access currently share `media:null`. Missing phone-state permission produces unknown cellular fields, not a known lack of cellular hardware.
 

@@ -136,6 +136,7 @@ sealed interface IncomingMessage {
     data class DndRuleCommand(val active: Boolean) : IncomingMessage
     data object HeadphoneHandoff : IncomingMessage
     data object HotspotRequest : IncomingMessage
+    data object PhoneLockRequest : IncomingMessage
     data class AudioStreamStart(
         val streamId: String,
         val key: ByteArray,

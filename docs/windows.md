@@ -1,6 +1,6 @@
 # Windows implementation and UX assessment
 
-Status: updated through the bidirectional-media and Open phone MVP checkpoints, 19 September 2026. Sources are in `src/PhoneCompanion.Windows/`; no framework migration was made. See [PROGRESS.md](../PROGRESS.md) for the next checkpoint.
+Status: updated through the Stage 16 lock-only MVP, 20 September 2026. Sources are in `src/PhoneCompanion.Windows/`; no framework migration was made. See [PROGRESS.md](../PROGRESS.md) for the next checkpoint.
 
 ## Host and platform boundaries
 
@@ -23,6 +23,8 @@ When Android reports a connected audio output, the flyout and full window expose
 `InternetConnectivityMonitor` observes Windows `NetworkInformation` and treats only `NetworkConnectivityLevel.InternetAccess` as internet available. While a real phone is connected and that level is absent, the full window and flyout show **Use phone internet**. The action sends authenticated `hotspot_request`, optionally asks the isolated `AndroidSettingsAssistant` to foreground the phone settings screen when exactly one ADB device is authorized, and opens documented `ms-settings:network-wifi`. Windows owns saved hotspot credentials and reconnection; Unity Connect does not read or transmit them. The Windows connectivity level is a platform hint, so runtime/captive-portal behavior remains for device validation.
 
 `LaptopAudioStreamer` implements the Stage 15 laptop-to-phone prototype. A visible **Play on phone** action shows capture scope and protected-content limitations before every start. NAudio's current WASAPI recorder captures the default render mix, the app converts mono/stereo samples to PCM16, and a separate local TCP socket carries sequence-checked AES-256-GCM records to the phone. The fresh key and connection token are negotiated only inside the existing authenticated companion session and are not persisted. Stop is available from either app; connection loss also ends capture. Raw PCM bandwidth, latency, battery cost, output-device changes and protected-content behavior require device validation. See [ADR-007](decisions/ADR-007-laptop-audio-streaming.md).
+
+Stage 16 adds explicit device-lock actions. An authenticated Android `pc_lock_request` calls Windows `LockWorkStation`; Windows can send `phone_lock_request` from the dashboard or flyout. `ProximityLockController` adds a separate session-only Windows option that is off at launch and cannot arm before this process observes an authenticated non-demo phone. A disconnect starts a two-minute grace; reconnect cancels it. After grace, Windows must have at least 30 seconds of local-input idle time. A suspend-sized timer gap restarts grace, and the controller makes one attempt per absence episode. It uses connection state and time rather than RSSI. No service, Credential Provider, unlock secret or phone biometric is involved. See [ADR-008](decisions/ADR-008-cross-device-locking.md).
 
 `WindowsMediaController` observes the current Global System Media Transport Controls session, normalizes bounded source/title/artist text and publishes playback/capability changes to the authenticated phone. Android commands are checked against the current Windows session's play/pause, next and previous capabilities before calling the matching platform action. Session/app behavior still needs runtime validation.
 

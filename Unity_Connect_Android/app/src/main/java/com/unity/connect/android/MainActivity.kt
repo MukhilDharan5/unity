@@ -43,6 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.unity.connect.android.state.HotspotSettings
+import com.unity.connect.android.security.DeviceLockController
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -171,6 +172,21 @@ private fun PairingContent(uiState: UiState, viewModel: AppViewModel) {
 @Composable
 private fun CompanionControls(uiState: UiState, viewModel: AppViewModel, associateHeadphones: () -> Unit) {
     val context = LocalContext.current
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Text("Device security", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Lock your trusted laptop from this phone. Unlock always uses the laptop's normal sign-in.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
+            Button(
+                onClick = viewModel::lockLaptop,
+                enabled = uiState.connectionState == ConnectionState.CONNECTED
+            ) { Text("Lock laptop") }
+        }
+    }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text("Audio output", style = MaterialTheme.typography.titleMedium)
@@ -334,6 +350,7 @@ private fun AccessContent(access: AccessState, requestRuntime: () -> Unit, conte
             AccessRow("Media sessions", access.mediaSessions, "Optional")
             AccessRow("Do Not Disturb", access.dndPolicy, "Optional")
             AccessRow("Phone brightness control", access.brightnessControl, "Optional")
+            AccessRow("Device lock", access.deviceLock, "Optional")
             if (!access.nearbyDevices || !access.notifications || !access.phoneState) {
                 Button(onClick = requestRuntime) { Text("Review device permissions") }
             }
@@ -354,6 +371,11 @@ private fun AccessContent(access: AccessState, requestRuntime: () -> Unit, conte
                         Uri.parse("package:${context.packageName}")
                     ))
                 }) { Text("Allow brightness control") }
+            }
+            if (!access.deviceLock) {
+                Button(onClick = {
+                    context.startActivity(DeviceLockController(context).activationIntent())
+                }) { Text("Allow device lock") }
             }
         }
     }

@@ -12,6 +12,7 @@ using PhoneCompanion.Windows.Brightness;
 using PhoneCompanion.Windows.Audio;
 using PhoneCompanion.Windows.Clipboard;
 using PhoneCompanion.Windows.Connection;
+using PhoneCompanion.Windows.Security;
 
 namespace PhoneCompanion.Windows.ViewModels;
 
@@ -25,6 +26,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     private readonly AndroidSettingsAssistant? _androidSettings;
     private readonly InternetConnectivityMonitor? _internetConnectivity;
     private readonly LaptopAudioStreamer? _laptopAudio;
+    private readonly ProximityLockController? _proximityLock;
     private PhoneState _state;
     private bool _busy;
     private bool _disposed;
@@ -34,11 +36,12 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     public PhoneViewModel(PhoneStateManager manager, Dispatcher dispatcher, ClipboardSyncCoordinator? clipboard = null,
         Func<string?>? openPhone = null, LaptopAdaptiveBrightnessController? laptopBrightness = null,
         AndroidSettingsAssistant? androidSettings = null, InternetConnectivityMonitor? internetConnectivity = null,
-        LaptopAudioStreamer? laptopAudio = null)
+        LaptopAudioStreamer? laptopAudio = null, ProximityLockController? proximityLock = null)
     {
         _manager = manager; _dispatcher = dispatcher; _clipboard = clipboard; _openPhone = openPhone;
         _laptopBrightness = laptopBrightness; _androidSettings = androidSettings;
-        _internetConnectivity = internetConnectivity; _laptopAudio = laptopAudio; _state = manager.Current;
+        _internetConnectivity = internetConnectivity; _laptopAudio = laptopAudio; _proximityLock = proximityLock;
+        _state = manager.Current;
         Previous = new AsyncCommand(() => SendAsync(MediaCommand.PreviousTrack), () => CanControl && _state.Media?.Capabilities.PreviousTrack == true);
         PlayPause = new AsyncCommand(() => SendAsync(MediaCommand.PlayPause), () => CanControl && _state.Media?.Capabilities.PlayPause == true);
         Next = new AsyncCommand(() => SendAsync(MediaCommand.NextTrack), () => CanControl && _state.Media?.Capabilities.NextTrack == true);
@@ -50,10 +53,13 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         MoveHeadphones = new AsyncCommand(MoveHeadphonesAsync, () => !_busy && CanMoveHeadphones);
         UsePhoneInternet = new AsyncCommand(UsePhoneInternetAsync, () => !_busy && CanUsePhoneInternet);
         ToggleLaptopAudio = new AsyncCommand(ToggleLaptopAudioAsync, () => !_busy && CanToggleLaptopAudio);
+        LockPhone = new AsyncCommand(LockPhoneAsync, () => !_busy && CanLockPhone);
+        ToggleProximityLock = new AsyncCommand(ToggleProximityLockAsync, () => !_busy && _proximityLock is not null);
         manager.StateChanged += OnStateChanged;
         if (_laptopBrightness is not null) _laptopBrightness.Changed += OnLaptopBrightnessChanged;
         if (_internetConnectivity is not null) _internetConnectivity.Changed += OnInternetConnectivityChanged;
         if (_laptopAudio is not null) _laptopAudio.Changed += OnLaptopAudioChanged;
+        if (_proximityLock is not null) _proximityLock.Changed += OnProximityLockChanged;
         if (_clipboard is not null)
         {
             _clipboard.Changed += OnClipboardChanged;
@@ -72,6 +78,8 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     public AsyncCommand MoveHeadphones { get; }
     public AsyncCommand UsePhoneInternet { get; }
     public AsyncCommand ToggleLaptopAudio { get; }
+    public AsyncCommand LockPhone { get; }
+    public AsyncCommand ToggleProximityLock { get; }
     public bool IsConnected => _state.Connection == ConnectionState.Connected;
     public bool IsDemo => _state.IsDemo;
     public bool HasMedia => _state.Media?.IsPlaying == true;
@@ -109,6 +117,13 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     public bool CanToggleLaptopAudio => _laptopAudio is not null && (IsLaptopAudioStreaming || IsConnected && !IsDemo);
     public string LaptopAudioActionText => IsLaptopAudioStreaming ? "Stop" : "Play on phone";
     public string LaptopAudioStatus => _laptopAudio?.Status ?? "Laptop audio streaming unavailable";
+    public bool CanLockPhone => IsConnected && !IsDemo;
+    public bool IsProximityLockEnabled => _proximityLock?.Enabled == true;
+    public string ProximityLockState => IsProximityLockEnabled ? "On" : "Off";
+    public string ProximityLockAction => IsProximityLockEnabled
+        ? "Turn proximity lock off"
+        : "Turn proximity lock on for this app session";
+    public string ProximityLockStatus => _proximityLock?.Status ?? "Proximity lock unavailable";
     public bool CanControlPhoneBrightness => IsConnected && !IsDemo && _state.Brightness?.CanControl == true;
     public double PhoneBrightnessLevel
     {
@@ -379,6 +394,27 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         }
         finally { _busy = false; Refresh(); }
     }
+    private async Task LockPhoneAsync()
+    {
+        _busy = true; _commandNotice = null; Refresh();
+        try
+        {
+            var result = await _manager.RequestPhoneLockAsync();
+            _commandNotice = result switch
+            {
+                CommandResult.Sent => "Phone lock requested.",
+                CommandResult.Failed => "Couldn't ask your phone to lock.",
+                _ => "Phone lock isn't available right now."
+            };
+        }
+        finally { _busy = false; Refresh(); }
+    }
+    private Task ToggleProximityLockAsync()
+    {
+        _proximityLock?.SetEnabled(!IsProximityLockEnabled);
+        Refresh();
+        return Task.CompletedTask;
+    }
     private void OnLaptopBrightnessChanged()
     {
         if (_disposed || _dispatcher.HasShutdownStarted) return;
@@ -390,6 +426,11 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         _dispatcher.BeginInvoke(Refresh);
     }
     private void OnLaptopAudioChanged()
+    {
+        if (_disposed || _dispatcher.HasShutdownStarted) return;
+        _dispatcher.BeginInvoke(Refresh);
+    }
+    private void OnProximityLockChanged()
     {
         if (_disposed || _dispatcher.HasShutdownStarted) return;
         _dispatcher.BeginInvoke(Refresh);
@@ -411,6 +452,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         OpenPhone.Refresh(); TogglePhoneAdaptive.Refresh();
         ToggleLaptopAdaptive.Refresh(); MoveHeadphones.Refresh(); UsePhoneInternet.Refresh();
         ToggleLaptopAudio.Refresh();
+        LockPhone.Refresh(); ToggleProximityLock.Refresh();
     }
     public void Dispose()
     {
@@ -420,6 +462,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         if (_laptopBrightness is not null) _laptopBrightness.Changed -= OnLaptopBrightnessChanged;
         if (_internetConnectivity is not null) _internetConnectivity.Changed -= OnInternetConnectivityChanged;
         if (_laptopAudio is not null) _laptopAudio.Changed -= OnLaptopAudioChanged;
+        if (_proximityLock is not null) _proximityLock.Changed -= OnProximityLockChanged;
         if (_clipboard is not null)
         {
             _clipboard.Changed -= OnClipboardChanged;

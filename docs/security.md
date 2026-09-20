@@ -1,6 +1,6 @@
 # Security — implemented baseline and release gates
 
-Status: assessment updated through Stage 1B-A2, 19 September 2026. This document distinguishes code behavior from security assurance. No new cryptographic protocol, trust migration or sensitive feature was implemented.
+Status: implementation assessment updated through the Stage 16 lock-only MVP, 20 September 2026. This document distinguishes code behavior from security assurance. No new cryptographic protocol or trust migration was implemented.
 
 ## Existing trust boundary
 
@@ -41,7 +41,9 @@ If encrypted BLE-only application commands are essential, an established, mainta
 
 ## Feature privacy
 
-Clipboard is off by default, independently controlled, text-only and without persisted content/history. Android send is a visible action. There is no sensitive-marker filtering/private mode yet. Sensitive buffers necessarily exist during transfer. No automatic Windows locking/unlocking, process-list transmission, audio capture, screen capture or privileged control exists.
+Clipboard is off by default, independently controlled, text-only and without persisted content/history. Android send is a visible action. There is no sensitive-marker filtering/private mode yet. Sensitive buffers necessarily exist during transfer.
+
+Explicit authenticated lock commands exist in both directions. Android's system-owned device-admin consent grants only `force-lock`; the app cannot set, read or bypass the device credential. Windows uses `LockWorkStation` in the interactive session. Its optional phone-absence lock is off at launch, arms only after a real authenticated phone connects, waits two minutes after loss, cancels on reconnect, requires 30 seconds of Windows input idle time, restarts grace after a detected resume and attempts once per absence. RSSI is not used. This is a convenience safeguard rather than authentication or guaranteed physical presence; device/OEM validation remains.
 
 Structured diagnostics are not implemented. The foundation logger must record event IDs, outcome/reason, route transitions and permission/capability facts without clipboard text, authentication secrets, key material or private media payloads. Establish bounded retention and safe export before adding a diagnostics UI.
 
