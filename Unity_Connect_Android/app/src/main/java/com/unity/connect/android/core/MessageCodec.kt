@@ -93,6 +93,17 @@ object MessageCodec {
     fun encodeSoundMessage(message: SoundMessage): String = encodeApplication(message)
     fun encodeMediaCommand(command: MediaCommand): String = encodeApplication(command)
     fun encodePcMediaCommand(command: String): String = encodeApplication(PcMediaCommand(command))
+    fun encodeAudioSinkReady(streamId: String, port: Int): String = buildJsonObject {
+        put("version", VERSION)
+        put("type", "audio_sink_ready")
+        put("streamId", streamId)
+        put("port", port)
+    }.toString().also { V1MessageValidator.validate(V1MessageValidator.parse(it)) }
+    fun encodeAudioStreamStop(streamId: String): String = buildJsonObject {
+        put("version", VERSION)
+        put("type", "audio_stream_stop")
+        put("streamId", streamId)
+    }.toString().also { V1MessageValidator.validate(V1MessageValidator.parse(it)) }
     fun decodeMediaCommand(data: String): MediaCommand {
         val root = V1MessageValidator.parse(data)
         V1MessageValidator.validate(root)

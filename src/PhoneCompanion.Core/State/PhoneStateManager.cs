@@ -21,6 +21,8 @@ public sealed class PhoneStateManager(IPhoneMessageCodec codec) : IAsyncDisposab
     public event Action<Exception>? TransportFaulted;
     public event Action<ClipboardContent>? ClipboardReceived;
     public event Action<MediaCommand>? PcMediaCommandReceived;
+    public event Action<AudioSinkReadyMessage>? AudioSinkReadyReceived;
+    public event Action<Guid>? AudioStreamStopReceived;
 
     public async Task<bool> SetTransportAsync(IPhoneTransport? transport, CancellationToken cancellationToken = default)
     {
@@ -92,6 +94,16 @@ public sealed class PhoneStateManager(IPhoneMessageCodec codec) : IAsyncDisposab
             if (decoded.Message is PcMediaCommandMessage pcMediaCommand)
             {
                 if (_current.Transport != TransportKind.Mock) PcMediaCommandReceived?.Invoke(pcMediaCommand.Command);
+                return;
+            }
+            if (decoded.Message is AudioSinkReadyMessage audioReady)
+            {
+                if (_current.Transport != TransportKind.Mock) AudioSinkReadyReceived?.Invoke(audioReady);
+                return;
+            }
+            if (decoded.Message is AudioStreamStopCommandMessage audioStop)
+            {
+                if (_current.Transport != TransportKind.Mock) AudioStreamStopReceived?.Invoke(audioStop.StreamId);
                 return;
             }
             var next = decoded.Message switch
@@ -244,6 +256,30 @@ public sealed class PhoneStateManager(IPhoneMessageCodec codec) : IAsyncDisposab
             if (transport is null) return CommandResult.Unavailable;
             return await SendMessageAsync(transport, new HotspotRequestCommandMessage(), cancellationToken)
                 .ConfigureAwait(false);
+        }
+        finally { _operations.Release(); }
+    }
+    public Task<CommandResult> StartAudioStreamAsync(AudioStreamStartCommandMessage request,
+        CancellationToken cancellationToken = default) => SendAudioMessageAsync(request, cancellationToken);
+
+    public Task<CommandResult> StopAudioStreamAsync(Guid streamId,
+        CancellationToken cancellationToken = default) =>
+        SendAudioMessageAsync(new AudioStreamStopCommandMessage(streamId), cancellationToken);
+
+    private async Task<CommandResult> SendAudioMessageAsync(PhoneMessage message, CancellationToken cancellationToken)
+    {
+        if (!await _operations.WaitAsync(0, cancellationToken).ConfigureAwait(false)) return CommandResult.Unavailable;
+        try
+        {
+            IPhoneTransport? transport;
+            lock (_sync)
+            {
+                if (_disposed || _current.Connection != ConnectionState.Connected || _current.Transport == TransportKind.Mock)
+                    return CommandResult.Unavailable;
+                transport = _transport;
+            }
+            if (transport is null) return CommandResult.Unavailable;
+            return await SendMessageAsync(transport, message, cancellationToken).ConfigureAwait(false);
         }
         finally { _operations.Release(); }
     }

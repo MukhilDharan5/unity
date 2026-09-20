@@ -3,11 +3,13 @@ using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using PhoneCompanion.Core.Models;
 using PhoneCompanion.Core.State;
 using PhoneCompanion.Windows.Brightness;
+using PhoneCompanion.Windows.Audio;
 using PhoneCompanion.Windows.Clipboard;
 using PhoneCompanion.Windows.Connection;
 
@@ -22,6 +24,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     private readonly LaptopAdaptiveBrightnessController? _laptopBrightness;
     private readonly AndroidSettingsAssistant? _androidSettings;
     private readonly InternetConnectivityMonitor? _internetConnectivity;
+    private readonly LaptopAudioStreamer? _laptopAudio;
     private PhoneState _state;
     private bool _busy;
     private bool _disposed;
@@ -30,11 +33,12 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     private CancellationTokenSource? _brightnessDebounce;
     public PhoneViewModel(PhoneStateManager manager, Dispatcher dispatcher, ClipboardSyncCoordinator? clipboard = null,
         Func<string?>? openPhone = null, LaptopAdaptiveBrightnessController? laptopBrightness = null,
-        AndroidSettingsAssistant? androidSettings = null, InternetConnectivityMonitor? internetConnectivity = null)
+        AndroidSettingsAssistant? androidSettings = null, InternetConnectivityMonitor? internetConnectivity = null,
+        LaptopAudioStreamer? laptopAudio = null)
     {
         _manager = manager; _dispatcher = dispatcher; _clipboard = clipboard; _openPhone = openPhone;
         _laptopBrightness = laptopBrightness; _androidSettings = androidSettings;
-        _internetConnectivity = internetConnectivity; _state = manager.Current;
+        _internetConnectivity = internetConnectivity; _laptopAudio = laptopAudio; _state = manager.Current;
         Previous = new AsyncCommand(() => SendAsync(MediaCommand.PreviousTrack), () => CanControl && _state.Media?.Capabilities.PreviousTrack == true);
         PlayPause = new AsyncCommand(() => SendAsync(MediaCommand.PlayPause), () => CanControl && _state.Media?.Capabilities.PlayPause == true);
         Next = new AsyncCommand(() => SendAsync(MediaCommand.NextTrack), () => CanControl && _state.Media?.Capabilities.NextTrack == true);
@@ -45,9 +49,11 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         ToggleLaptopAdaptive = new AsyncCommand(ToggleLaptopAdaptiveAsync, () => !_busy && CanUseLaptopAdaptive);
         MoveHeadphones = new AsyncCommand(MoveHeadphonesAsync, () => !_busy && CanMoveHeadphones);
         UsePhoneInternet = new AsyncCommand(UsePhoneInternetAsync, () => !_busy && CanUsePhoneInternet);
+        ToggleLaptopAudio = new AsyncCommand(ToggleLaptopAudioAsync, () => !_busy && CanToggleLaptopAudio);
         manager.StateChanged += OnStateChanged;
         if (_laptopBrightness is not null) _laptopBrightness.Changed += OnLaptopBrightnessChanged;
         if (_internetConnectivity is not null) _internetConnectivity.Changed += OnInternetConnectivityChanged;
+        if (_laptopAudio is not null) _laptopAudio.Changed += OnLaptopAudioChanged;
         if (_clipboard is not null)
         {
             _clipboard.Changed += OnClipboardChanged;
@@ -65,6 +71,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     public AsyncCommand ToggleLaptopAdaptive { get; }
     public AsyncCommand MoveHeadphones { get; }
     public AsyncCommand UsePhoneInternet { get; }
+    public AsyncCommand ToggleLaptopAudio { get; }
     public bool IsConnected => _state.Connection == ConnectionState.Connected;
     public bool IsDemo => _state.IsDemo;
     public bool HasMedia => _state.Media?.IsPlaying == true;
@@ -98,6 +105,10 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         : "Your phone will guide the disconnect step";
     public bool CanUsePhoneInternet => IsConnected && !IsDemo && _internetConnectivity?.HasInternet == false;
     public string PhoneInternetDetail => "Laptop internet unavailable · Use Android tethering";
+    public bool IsLaptopAudioStreaming => _laptopAudio?.IsStreaming == true;
+    public bool CanToggleLaptopAudio => _laptopAudio is not null && (IsLaptopAudioStreaming || IsConnected && !IsDemo);
+    public string LaptopAudioActionText => IsLaptopAudioStreaming ? "Stop" : "Play on phone";
+    public string LaptopAudioStatus => _laptopAudio?.Status ?? "Laptop audio streaming unavailable";
     public bool CanControlPhoneBrightness => IsConnected && !IsDemo && _state.Brightness?.CanControl == true;
     public double PhoneBrightnessLevel
     {
@@ -346,12 +357,39 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         }
         finally { _busy = false; Refresh(); }
     }
+    private async Task ToggleLaptopAudioAsync()
+    {
+        if (_laptopAudio is null) return;
+        if (_laptopAudio.IsStreaming)
+        {
+            await _laptopAudio.StopAsync();
+            _commandNotice = "Laptop audio stopped.";
+            Refresh();
+            return;
+        }
+        var answer = MessageBox.Show(
+            "Unity Connect will capture all audio playing through the current Windows output and stream it to your phone over the local network. Protected content may be silent. Start streaming?",
+            "Play laptop audio on phone", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (answer != MessageBoxResult.Yes) return;
+        _busy = true; _commandNotice = null; Refresh();
+        try
+        {
+            var error = await _laptopAudio.StartAsync();
+            _commandNotice = error ?? "Laptop audio is playing on your phone.";
+        }
+        finally { _busy = false; Refresh(); }
+    }
     private void OnLaptopBrightnessChanged()
     {
         if (_disposed || _dispatcher.HasShutdownStarted) return;
         _dispatcher.BeginInvoke(Refresh);
     }
     private void OnInternetConnectivityChanged()
+    {
+        if (_disposed || _dispatcher.HasShutdownStarted) return;
+        _dispatcher.BeginInvoke(Refresh);
+    }
+    private void OnLaptopAudioChanged()
     {
         if (_disposed || _dispatcher.HasShutdownStarted) return;
         _dispatcher.BeginInvoke(Refresh);
@@ -372,6 +410,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         Previous.Refresh(); PlayPause.Refresh(); Next.Refresh(); ToggleDndRule.Refresh(); ToggleClipboard.Refresh();
         OpenPhone.Refresh(); TogglePhoneAdaptive.Refresh();
         ToggleLaptopAdaptive.Refresh(); MoveHeadphones.Refresh(); UsePhoneInternet.Refresh();
+        ToggleLaptopAudio.Refresh();
     }
     public void Dispose()
     {
@@ -380,6 +419,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         _manager.StateChanged -= OnStateChanged;
         if (_laptopBrightness is not null) _laptopBrightness.Changed -= OnLaptopBrightnessChanged;
         if (_internetConnectivity is not null) _internetConnectivity.Changed -= OnInternetConnectivityChanged;
+        if (_laptopAudio is not null) _laptopAudio.Changed -= OnLaptopAudioChanged;
         if (_clipboard is not null)
         {
             _clipboard.Changed -= OnClipboardChanged;

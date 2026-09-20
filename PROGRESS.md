@@ -1,6 +1,6 @@
 # Project progress and resume log
 
-Last updated: 20 September 2026. **MVP feature work is continuing on the isolated encrypted v1 channel.** Automatic authenticated LAN discovery, reconnect, Android access state, phone sensors and opt-in laptop adaptive brightness are complete. Detailed diagnostics and broad validation are deferred.
+Last updated: 20 September 2026. **MVP feature work is continuing on the isolated encrypted v1 channel.** Automatic authenticated LAN discovery, reconnect, Android access state, phone sensors, opt-in laptop adaptive brightness and laptop-to-phone audio streaming are complete. Detailed diagnostics and broad validation are deferred.
 
 ## Current instructions
 
@@ -253,8 +253,20 @@ The previous optional ADB helper is generalized as `AndroidSettingsAssistant`. W
 
 Minimal verification per the MVP instruction: the focused Windows Release application build passed with 0 warnings/errors, and Android `:app:compileDebugKotlin --offline --no-daemon` passed. Physical tethering, notification delivery, OEM settings resolution, Windows connectivity detection, saved-profile reconnection and captive-portal behavior remain deferred.
 
+### 20 September 2026 — Stage 15 laptop-to-phone audio MVP completed
+
+The audio feasibility choice is laptop-to-phone first. Windows has a supported WASAPI render-loopback path, while Android playback through `AudioTrack` requires no new permission; phone playback capture would require a separate `MediaProjection` consent/permission flow and source-app cooperation. Every Windows start shows a capture-scope confirmation and explicitly warns that protected output may be silent.
+
+Windows now uses NAudio 3.1's current `WasapiRecorder` loopback API, buffers the current 8–96 kHz mono/stereo mix, converts it to PCM16 and exposes **Play on phone / Stop** in the full app and flyout. Android opens an ephemeral TCP sink, requests media audio focus, decrypts and plays the PCM stream, and exposes its own Stop action. Companion disconnect, permanent phone audio-focus loss, socket failure or app exit also ends the stream.
+
+The existing authenticated companion connection negotiates `audio_stream_start`, `audio_sink_ready` and `audio_stream_stop` only. Each stream gets a fresh random AES-256 key, 128-bit connection token and UUID. Bulk audio travels over a separate Wi-Fi TCP socket so it cannot block ordinary state/commands. The socket validates the token and every bounded record uses AES-256-GCM with an exact increasing sequence and authenticated stream identity. Keys and tokens are never persisted. BLE does not carry audio.
+
+Minimal verification per the MVP instruction: the focused Windows Release build passed with 0 warnings/errors after updating from NAudio's obsolete legacy capture type to its current recorder/builder API. Android `:app:compileDebugKotlin --offline --no-daemon` passed. Broad tests, UI rendering, physical playback, latency/underrun/battery measurements, network interruption, audio-focus/call behavior, output-device changes and protected-content behavior remain deferred.
+
+Known MVP limits: raw PCM consumes more bandwidth/power than a codec; there is no resampling, compression, jitter adaptation or route migration. Formats above stereo are rejected. This stage does not implement phone-to-laptop audio, call/microphone capture, per-app Windows selection, a DRM guarantee or a low-latency claim. ADR-007 records the architecture and limits.
+
 ## Next concrete resume action
 
-Stage 14 is implemented at MVP scope with an explicit authenticated request and user-assisted system settings. The next planned coding stage is Stage 15 audio streaming. Start with a capability/feasibility spike and a narrow prototype; preserve explicit capture consent and do not claim DRM, call audio or low-latency support without evidence.
+Stage 15 is implemented at MVP scope for laptop-to-phone audio. The next planned stage is Stage 16 advanced security. Do not start it automatically: discuss the exact lock/security objective, threat model and Windows Credential Provider boundary with the user before coding because a wrong design could create a false unlock-security claim.
 
 Do not repeat Stage 0 or migrate TLS/WinUI without a new explicit decision. Preserve the Windows UI and Android root build/helper edits. The user authorized the repository snapshot and GitHub push recorded above.

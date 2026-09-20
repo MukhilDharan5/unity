@@ -6,6 +6,8 @@ Stage 1A retains both implementations and JSON v1. Android now validates applica
 
 ## Current boundaries
 
+Stage 15 adds one deliberate data-plane exception to the single companion frame stream. The authenticated BLE/LAN session negotiates laptop audio and carries its fresh key/token, while continuous PCM uses an ephemeral Android-hosted TCP socket reachable only on the local network. AES-GCM sequence records protect that socket independently, and it is torn down with the companion session. This keeps bulk audio from blocking state and commands; it is not a general-purpose secondary transport.
+
 The Windows solution contains platform-neutral Core, a WPF/WinForms Windows executable, a Core test executable and a Windows smoke-test executable. Android is a separate Kotlin/Compose Gradle project. The wire contract is shared by documentation and an optional runtime interoperability test; code models are duplicated across languages.
 
 ```text

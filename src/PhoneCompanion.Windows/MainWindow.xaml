@@ -310,6 +310,20 @@
                                                         ToolTip="{Binding LaptopAdaptiveAction}" AutomationProperties.Name="{Binding LaptopAdaptiveAction}" VerticalAlignment="Center" />
                                             </Grid>
                                         </Border>
+                                        <TextBlock Text="Audio streaming" Style="{StaticResource SectionHeading}" />
+                                        <Border Style="{StaticResource SettingRow}" Margin="0,0,0,28">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                <TextBlock Text="&#xE767;" Style="{StaticResource Glyph}" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
+                                                    <TextBlock Text="Laptop audio on phone" Style="{StaticResource SettingTitle}" />
+                                                    <TextBlock Text="{Binding LaptopAudioStatus}" Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                                                </StackPanel>
+                                                <Button Grid.Column="2" Style="{StaticResource ActionButton}" Content="{Binding LaptopAudioActionText}"
+                                                        Command="{Binding ToggleLaptopAudio}" IsEnabled="{Binding CanToggleLaptopAudio}"
+                                                        AutomationProperties.Name="{Binding LaptopAudioActionText}" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
                                         <TextBlock Text="Clipboard" Style="{StaticResource SectionHeading}" />
                                         <Border Style="{StaticResource SettingRow}">
                                             <Grid>

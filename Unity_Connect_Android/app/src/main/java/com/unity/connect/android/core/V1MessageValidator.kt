@@ -1,5 +1,6 @@
 package com.unity.connect.android.core
 
+import java.util.Base64
 import java.util.UUID
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.*
@@ -31,6 +32,9 @@ internal object V1MessageValidator {
             "dnd_rule_command" -> boolean(root, "active")
             "headphone_handoff" -> Unit
             "hotspot_request" -> Unit
+            "audio_stream_start" -> audioStreamStart(root)
+            "audio_stream_stop" -> streamId(root)
+            "audio_sink_ready" -> audioSinkReady(root)
             "clipboard" -> clipboard(root)
             else -> throw IllegalArgumentException("Unknown application message")
         }
@@ -65,6 +69,8 @@ internal object V1MessageValidator {
         "dnd_rule_command" -> IncomingMessage.DndRuleCommand(boolean(root, "active"))
         "headphone_handoff" -> IncomingMessage.HeadphoneHandoff
         "hotspot_request" -> IncomingMessage.HotspotRequest
+        "audio_stream_start" -> audioStreamStart(root)
+        "audio_stream_stop" -> IncomingMessage.AudioStreamStop(streamId(root))
         "clipboard" -> IncomingMessage.ClipboardUpdate(clipboard(root))
         else -> null // Valid phone-state messages are not commands for Android.
     }
@@ -133,6 +139,28 @@ internal object V1MessageValidator {
             "Invalid brightness command"
         }
         return IncomingMessage.BrightnessCommand(level, adaptive)
+    }
+
+    private fun audioStreamStart(root: JsonObject): IncomingMessage.AudioStreamStart {
+        val key = Base64.getDecoder().decode(text(root, "key", 44, true)!!)
+        val token = Base64.getDecoder().decode(text(root, "token", 24, true)!!)
+        val sampleRate = integer(root, "sampleRate")
+        val channels = integer(root, "channels")
+        require(key.size == 32 && token.size == 16 && sampleRate in 8000..96000 && channels in 1..2) {
+            "Invalid audio stream"
+        }
+        return IncomingMessage.AudioStreamStart(streamId(root), key, token, sampleRate, channels)
+    }
+
+    private fun audioSinkReady(root: JsonObject) {
+        streamId(root)
+        require(integer(root, "port") in 1..65535) { "Invalid audio sink port" }
+    }
+
+    private fun streamId(root: JsonObject): String {
+        val value = text(root, "streamId", 36, true)!!
+        require(UUID.fromString(value).toString().equals(value, ignoreCase = true)) { "Invalid stream ID" }
+        return value.lowercase()
     }
 
     private fun sound(value: JsonElement): String = stringValue(value).also {

@@ -157,6 +157,28 @@ Phone-internet assistance is also an explicit command with no payload fields:
 
 Windows sends it only from the visible **Use phone internet** action on an authenticated non-demo session. Android posts a user-action notification into the closest system-owned tethering/wireless settings screen; it does not silently toggle tethering and does not use `LocalOnlyHotspot`. Windows opens its Wi-Fi settings so an existing saved hotspot profile can reconnect or the user can choose the phone network. Optional ADB settings launch is local Windows behavior outside this message protocol.
 
+Laptop-to-phone audio uses three authenticated control messages. Windows creates a fresh stream UUID, 32-byte AES key and 16-byte connection token after the user confirms capture:
+
+```json
+{"version":1,"type":"audio_stream_start","streamId":"7d7fc709-84d2-4575-8b99-e262dc8cc78e","key":"<32 bytes, base64>","token":"<16 bytes, base64>","sampleRate":48000,"channels":2}
+```
+
+`sampleRate` is 8,000–96,000 and `channels` is 1 or 2. Android opens an ephemeral TCP listener and returns its port on the same active secure session:
+
+```json
+{"version":1,"type":"audio_sink_ready","streamId":"7d7fc709-84d2-4575-8b99-e262dc8cc78e","port":49152}
+```
+
+The Windows client connects to that port over the LAN and writes the exact 16-byte token first. Every following record is a four-byte unsigned big-endian length followed by an eight-byte unsigned big-endian sequence, PCM16 ciphertext, and a 16-byte AES-GCM tag. Sequence starts at zero and must increase by one. The 12-byte nonce is four zero bytes followed by the sequence bytes. Additional authenticated data is the lowercase canonical UTF-8 stream UUID followed by the same sequence bytes. Record length is 26–16,384 bytes; decrypted PCM is little-endian and must contain complete mono/stereo frames. A token mismatch, sequence gap, authentication failure, invalid size or malformed PCM closes the sink.
+
+Either peer can send the matching stop message over the authenticated session. A peer ignores a stop for another stream:
+
+```json
+{"version":1,"type":"audio_stream_stop","streamId":"7d7fc709-84d2-4575-8b99-e262dc8cc78e"}
+```
+
+The side socket is a feature-specific data plane, not a second trusted companion session. It is Wi-Fi only, has no persisted key/token, and ends on companion disconnect, socket failure, phone audio-focus loss, explicit stop or app exit. Version 1 streams uncompressed PCM and does not negotiate a codec, resample, migrate routes or claim low latency. It does not capture phone apps, calls or microphones, and Windows protected output may be silent.
+
 Clipboard text can travel in either direction over an authenticated session:
 
 ```json

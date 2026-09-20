@@ -28,6 +28,7 @@ import com.unity.connect.android.state.BrightnessController
 import com.unity.connect.android.state.BluetoothAudioMonitor
 import com.unity.connect.android.state.HeadphoneReleaseResult
 import com.unity.connect.android.state.HotspotSettings
+import com.unity.connect.android.state.LaptopAudioReceiver
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.*
@@ -56,6 +57,8 @@ data class UiState(
     val pcMedia: MediaState? = null,
     val bluetoothAudioName: String? = null,
     val bluetoothAudioCanRelease: Boolean = false,
+    val laptopAudioStreaming: Boolean = false,
+    val laptopAudioNotice: String? = null,
     val wifiAddress: String? = null,
     val awaitingOtherDevice: Boolean = false,
     val access: AccessState = AccessState()
@@ -75,6 +78,7 @@ class ConnectionService : Service() {
         } }
         fun sendCurrentClipboard() { instance?.sendClipboard() }
         fun sendPcMediaCommand(command: String) { instance?.sendPcMediaCommand(command) }
+        fun stopLaptopAudio() { instance?.stopLaptopAudio() }
         fun setCompanionDndActive(active: Boolean) { instance?.dnd?.setCompanionRuleActive(active) }
         fun refreshDndState() { instance?.apply {
             dnd.refresh(); bluetoothAudio.refresh(); refreshAccessState(); refreshAddress(); restartCollector()
@@ -94,6 +98,7 @@ class ConnectionService : Service() {
     private lateinit var collector: StateCollector
     private lateinit var brightness: BrightnessController
     private lateinit var bluetoothAudio: BluetoothAudioMonitor
+    private lateinit var laptopAudio: LaptopAudioReceiver
     private val prefs by lazy { getSharedPreferences("secure_peers_v1", MODE_PRIVATE) }
     private val identity by lazy { IdentityStore.load() }
     private val owner = PhoneSessionOwner(scope) { scope.launch { onSessionsChanged() } }
@@ -149,6 +154,13 @@ class ConnectionService : Service() {
         collection = PhoneStateCollection(scope, owner, collector.phoneState)
         state.value = UiState(isPaired = prefs.contains("identity"), pairedPcName = prefs.getString("name", null),
             clipboardSyncEnabled = clipboard.enabled, access = readAccessState())
+        laptopAudio = LaptopAudioReceiver(this, scope,
+            ready = { streamId, audioPort ->
+                sendActive(MessageCodec.encodeAudioSinkReady(streamId, audioPort).toByteArray(Charsets.UTF_8))
+            },
+            changed = { active, notice -> state.update {
+                it.copy(laptopAudioStreaming = active, laptopAudioNotice = notice)
+            } })
         dnd.state.onEach { value -> state.update { it.copy(canControlCompanionDnd = value?.canControlCompanionRule == true,
             companionDndActive = value?.companionRuleActive == true) } }.launchIn(scope)
         bluetoothAudio.state.onEach { value ->
@@ -407,7 +419,7 @@ class ConnectionService : Service() {
             sasCode = if (consent == null) null else it.sasCode,
             awaitingOtherDevice = if (consent == null) false else it.awaitingOtherDevice,
             pcMedia = if (owner.hasSessions) it.pcMedia else null) }
-        if (!owner.hasSessions) stopCollector()
+        if (!owner.hasSessions) { stopCollector(); laptopAudio.stop() }
         else latest?.let { snapshot -> sendActive(MessageCodec.encodePhoneSnapshot(snapshot).toByteArray(Charsets.UTF_8)) }
         notifyState()
     }
@@ -424,6 +436,8 @@ class ConnectionService : Service() {
             is IncomingMessage.DndRuleCommand -> dnd.setCompanionRuleActive(message.active)
             IncomingMessage.HeadphoneHandoff -> handleHeadphoneHandoff()
             IncomingMessage.HotspotRequest -> handleHotspotRequest()
+            is IncomingMessage.AudioStreamStart -> laptopAudio.start(message)
+            is IncomingMessage.AudioStreamStop -> laptopAudio.stop(message.streamId)
             is IncomingMessage.ClipboardUpdate -> if (clipboard.enabled) clipboard.applyIncoming(message.content)
             null -> Unit
         }
@@ -488,6 +502,13 @@ class ConnectionService : Service() {
             } finally { pcMediaCommand = null }
         }
     }
+    private fun stopLaptopAudio() {
+        val streamId = laptopAudio.currentStreamId ?: return
+        laptopAudio.stop(streamId)
+        scope.launch {
+            sendActive(MessageCodec.encodeAudioStreamStop(streamId).toByteArray(Charsets.UTF_8))
+        }
+    }
     private fun sendClipboard() {
         if (owner.active() == null || !clipboard.enabled) {
             state.update { it.copy(featureNotice = "Connect your laptop and turn clipboard sync on first.") }; return
@@ -510,6 +531,7 @@ class ConnectionService : Service() {
         pcMediaCommand?.cancel(); pcMediaCommand = null
         prefs.edit().clear().commit()
         clipboard.updateEnabled(false)
+        laptopAudio.stop()
         stopListeners()
         stopCollector()
         state.value = UiState(
@@ -531,6 +553,7 @@ class ConnectionService : Service() {
         instance = null
         unregisterRuntimeSignals()
         owner.close(); stopCollector(); pcMediaCommand?.cancel(); pcMediaCommand = null
+        laptopAudio.close()
         bluetoothAudio.close()
         pairingExpiry?.cancel(); pairingExpiry = null
         stopListeners(); scope.cancel(); dnd.close()

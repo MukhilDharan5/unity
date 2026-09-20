@@ -191,6 +191,22 @@ private fun CompanionControls(uiState: UiState, viewModel: AppViewModel, associa
         }
     }
 
+    if (uiState.laptopAudioStreaming || uiState.laptopAudioNotice != null) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text("Laptop audio", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    uiState.laptopAudioNotice ?: "Playing laptop audio",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                if (uiState.laptopAudioStreaming) {
+                    Button(onClick = viewModel::stopLaptopAudio) { Text("Stop") }
+                }
+            }
+        }
+    }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Text("Phone internet", style = MaterialTheme.typography.titleMedium)

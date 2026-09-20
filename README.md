@@ -1,6 +1,6 @@
 # Phone Companion
 
-The [progress and resume log](PROGRESS.md) records the current MVP checkpoint: automatic LAN discovery, reconnect/lifecycle coordination, live phone status, bidirectional media control, optional scrcpy launch, phone brightness/light sensing, opt-in laptop adaptive brightness, public/assisted headphone handoff, phone-internet assistance, explicit Android access state, portable Android builds and typed connection policy are implemented. Work is proceeding implementation-first with minimal compile checks; broad validation is deferred. The [Stage 0 audit](CURRENT_STATE.md) is the historical assessment. The current encrypted v1 channel is the accepted interim MVP direction; any compatibility-changing security migration remains a separate post-MVP decision.
+The [progress and resume log](PROGRESS.md) records the current MVP checkpoint: automatic LAN discovery, reconnect/lifecycle coordination, live phone status, bidirectional media control, optional scrcpy launch, phone brightness/light sensing, opt-in laptop adaptive brightness, public/assisted headphone handoff, phone-internet assistance, laptop-to-phone audio streaming, explicit Android access state, portable Android builds and typed connection policy are implemented. Work is proceeding implementation-first with minimal compile checks; broad validation is deferred. The [Stage 0 audit](CURRENT_STATE.md) is the historical assessment. The current encrypted v1 channel is the accepted interim MVP direction; any compatibility-changing security migration remains a separate post-MVP decision.
 
 A Windows desktop control app with a compact tray flyout and an Android companion. The two apps pair over BLE or Wi-Fi/LAN, verify a six-digit code, remember the approved device identity, and protect every application message with an authenticated encrypted session.
 
@@ -29,7 +29,7 @@ Install the .NET 10 SDK, then run:
 .\scripts\build.ps1
 ```
 
-The script restores, builds Release with warnings treated as errors, runs the core checks and Windows UI smoke checks, then publishes to `artifacts/PhoneCompanion`. It puts CLI/cache files under `artifacts/dotnet-home`. Windows uses Microsoft's `System.Management` package for integrated-display brightness and the pinned `Microsoft.Windows.SDK.NET.Ref` targeting pack, version `10.0.26100.57`; there are no third-party application or test libraries.
+The script restores, builds Release with warnings treated as errors, runs the core checks and Windows UI smoke checks, then publishes to `artifacts/PhoneCompanion`. It puts CLI/cache files under `artifacts/dotnet-home`. Windows uses Microsoft's `System.Management` package for integrated-display brightness, NAudio 3.1 for WASAPI loopback capture, and the pinned `Microsoft.Windows.SDK.NET.Ref` targeting pack, version `10.0.26100.57`.
 
 For an offline machine with the targeting pack's `.nupkg` cached locally:
 
@@ -58,6 +58,7 @@ UI checks instantiate the actual XAML, view model and tray controller, exercise 
 | Brightness and light | Reports and controls phone brightness; optionally maps valid phone ambient light to supported laptop displays with smoothing, hysteresis and bounded transitions |
 | Bluetooth audio | Reports the current Android A2DP output; Windows requests release, opens Bluetooth settings, and can optionally foreground the phone flow through an authorized ADB installation |
 | Phone internet | When Windows reports no internet, an explicit action requests Android tethering settings and opens Windows Wi-Fi for a saved hotspot; optional ADB only foregrounds the phone settings screen |
+| Laptop audio on phone | Explicitly confirmed Windows WASAPI loopback capture, separately encrypted Wi-Fi PCM stream, Android `AudioTrack` playback, and stop controls on both devices |
 | Companion DND | App-owned Android `AutomaticZenRule`; Windows control never changes manual/global DND directly |
 | Clipboard | Opt-in new-text sync, 12 KiB limit, loop suppression, no stored history; Android sends only on a visible user action |
 | Message layer | JSON v1 behind `IPhoneMessageCodec`; authenticated encryption and replay rejection below it |
@@ -95,6 +96,6 @@ docs/SECURE-SESSION-v1.md        Exact implemented handshake and encrypted recor
 docs/VALIDATION.md               Verified checks and remaining hardware validation
 ```
 
-Silent hotspot toggling, audio streaming, file transfer, computer monitoring, and clipboard history are not included. scrcpy and the narrow ADB settings accelerator remain optional local tools outside the companion transport.
+Silent hotspot toggling, phone-to-laptop audio, file transfer, computer monitoring, and clipboard history are not included. scrcpy and the narrow ADB settings accelerator remain optional local tools outside the companion transport.
 
 Windows implementation references: [Microsoft NotifyIcon overview](https://learn.microsoft.com/en-us/dotnet/desktop/winforms/controls/notifyicon-component-overview-windows-forms) and [Microsoft BLE advertisement watcher documentation](https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.advertisement.bluetoothleadvertisementwatcher).

@@ -64,6 +64,23 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
             case HotspotRequestCommandMessage:
                 root["type"] = "hotspot_request";
                 break;
+            case AudioStreamStartCommandMessage m:
+                root["type"] = "audio_stream_start";
+                root["streamId"] = m.StreamId.ToString("D");
+                root["key"] = Convert.ToBase64String(m.Key);
+                root["token"] = Convert.ToBase64String(m.Token);
+                root["sampleRate"] = m.SampleRate;
+                root["channels"] = m.Channels;
+                break;
+            case AudioStreamStopCommandMessage m:
+                root["type"] = "audio_stream_stop";
+                root["streamId"] = m.StreamId.ToString("D");
+                break;
+            case AudioSinkReadyMessage m:
+                root["type"] = "audio_sink_ready";
+                root["streamId"] = m.StreamId.ToString("D");
+                root["port"] = m.Port;
+                break;
             case ClipboardUpdate m:
                 root["type"] = "clipboard";
                 root["updateId"] = m.Content.UpdateId.ToString("D");
@@ -107,6 +124,9 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
                 "dnd_rule_command" => new DndRuleCommandMessage(Bool(r, "active")),
                 "headphone_handoff" => new HeadphoneHandoffCommandMessage(),
                 "hotspot_request" => new HotspotRequestCommandMessage(),
+                "audio_stream_start" => ReadAudioStreamStart(r),
+                "audio_stream_stop" => new AudioStreamStopCommandMessage(ReadGuid(r, "streamId")),
+                "audio_sink_ready" => ReadAudioSinkReady(r),
                 "clipboard" => new ClipboardUpdate(ReadClipboard(r)),
                 _ => null
             };
@@ -232,6 +252,28 @@ public sealed class JsonPhoneMessageCodec : IPhoneMessageCodec
         if (text.Length == 0 || text.Contains('\0') || Encoding.UTF8.GetByteCount(text) > MaxClipboardTextBytes)
             throw new FormatException();
         return new(updateId, text);
+    }
+    private static AudioStreamStartCommandMessage ReadAudioStreamStart(JsonElement r)
+    {
+        var key = Convert.FromBase64String(Text(r, "key", 44, true)!);
+        var token = Convert.FromBase64String(Text(r, "token", 24, true)!);
+        var sampleRate = Int(r, "sampleRate");
+        var channels = Int(r, "channels");
+        if (key.Length != 32 || token.Length != 16 || sampleRate is < 8000 or > 96000 || channels is < 1 or > 2)
+            throw new FormatException();
+        return new(ReadGuid(r, "streamId"), key, token, sampleRate, channels);
+    }
+    private static AudioSinkReadyMessage ReadAudioSinkReady(JsonElement r)
+    {
+        var port = Int(r, "port");
+        if (port is < 1 or > 65535) throw new FormatException();
+        return new(ReadGuid(r, "streamId"), port);
+    }
+    private static Guid ReadGuid(JsonElement r, string name)
+    {
+        var value = Text(r, name, 36, true);
+        if (!Guid.TryParseExact(value, "D", out var id)) throw new FormatException();
+        return id;
     }
     private static StateSnapshot ReadSnapshot(JsonElement r) => new(
         ReadNullable(r.GetProperty("battery"), ReadBattery), ReadNullable(r.GetProperty("media"), ReadMedia),

@@ -40,6 +40,10 @@ class AppViewModel : ViewModel() {
         ConnectionService.sendPcMediaCommand(command)
     }
 
+    fun stopLaptopAudio() {
+        ConnectionService.stopLaptopAudio()
+    }
+
     fun setCompanionDndActive(active: Boolean) {
         ConnectionService.setCompanionDndActive(active)
     }

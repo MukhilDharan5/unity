@@ -19,6 +19,10 @@ public sealed record PhoneBrightnessCommandMessage(int? Level, bool? Adaptive) :
 public sealed record DndRuleCommandMessage(bool Active) : PhoneMessage;
 public sealed record HeadphoneHandoffCommandMessage : PhoneMessage;
 public sealed record HotspotRequestCommandMessage : PhoneMessage;
+public sealed record AudioStreamStartCommandMessage(
+    Guid StreamId, byte[] Key, byte[] Token, int SampleRate, int Channels) : PhoneMessage;
+public sealed record AudioStreamStopCommandMessage(Guid StreamId) : PhoneMessage;
+public sealed record AudioSinkReadyMessage(Guid StreamId, int Port) : PhoneMessage;
 public sealed record ClipboardUpdate(ClipboardContent Content) : PhoneMessage;
 
 public enum DecodeError { None, Empty, TooLarge, Malformed, UnsupportedVersion, UnknownType, InvalidPayload }

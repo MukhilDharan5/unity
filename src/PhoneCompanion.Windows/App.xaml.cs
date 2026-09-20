@@ -7,6 +7,7 @@ using System.Windows;
 using PhoneCompanion.Core.Protocol;
 using PhoneCompanion.Core.State;
 using PhoneCompanion.Core.Transports;
+using PhoneCompanion.Windows.Audio;
 using PhoneCompanion.Windows.Brightness;
 using PhoneCompanion.Windows.Clipboard;
 using PhoneCompanion.Windows.Connection;
@@ -32,6 +33,7 @@ public partial class App : Application
     private AndroidSettingsAssistant? _androidSettings;
     private InternetConnectivityMonitor? _internetConnectivity;
     private LaptopAdaptiveBrightnessController? _laptopBrightness;
+    private LaptopAudioStreamer? _laptopAudio;
     private PairingWindow? _pairing;
     private readonly IdentityAndTrustStore _connectionStore = new();
     private CancellationTokenSource? _reconnect;
@@ -60,9 +62,10 @@ public partial class App : Application
         _androidSettings = new AndroidSettingsAssistant();
         _internetConnectivity = new InternetConnectivityMonitor();
         _laptopBrightness = await LaptopAdaptiveBrightnessController.CreateAsync();
+        _laptopAudio = new LaptopAudioStreamer(_manager, _connectionStore);
         _clipboard = new ClipboardSyncCoordinator(_manager, new WindowsClipboardService(Dispatcher), Dispatcher);
         _viewModel = new PhoneViewModel(_manager, Dispatcher, _clipboard, _phoneScreen.Open, _laptopBrightness,
-            _androidSettings, _internetConnectivity);
+            _androidSettings, _internetConnectivity, _laptopAudio);
         _flyout = new FlyoutWindow { DataContext = _viewModel };
         _desktop = new MainWindow { DataContext = _viewModel };
         MainWindow = _desktop;
@@ -221,6 +224,7 @@ public partial class App : Application
         _tray?.Dispose(); _tray = null;
         _theme?.Dispose(); _theme = null;
         _viewModel?.Dispose();
+        if (_laptopAudio is not null) { await _laptopAudio.DisposeAsync(); _laptopAudio = null; }
         _internetConnectivity?.Dispose(); _internetConnectivity = null;
         if (_laptopBrightness is not null) { await _laptopBrightness.DisposeAsync(); _laptopBrightness = null; }
         if (_manager is not null) _manager.PcMediaCommandReceived -= OnPcMediaCommandReceived;
@@ -239,6 +243,7 @@ public partial class App : Application
         _tray?.Dispose();
         _theme?.Dispose();
         _viewModel?.Dispose();
+        _laptopAudio?.Dispose(); _laptopAudio = null;
         _internetConnectivity?.Dispose(); _internetConnectivity = null;
         _laptopBrightness?.Dispose(); _laptopBrightness = null;
         _clipboard?.Dispose();
