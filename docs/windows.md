@@ -20,7 +20,9 @@ The desktop has a native title bar with DWM dark caption/rounded-corner requests
 
 `WindowsMediaController` observes the current Global System Media Transport Controls session, normalizes bounded source/title/artist text and publishes playback/capability changes to the authenticated phone. Android commands are checked against the current Windows session's play/pause, next and previous capabilities before calling the matching platform action. Session/app behavior still needs runtime validation.
 
-The shared view model exposes phone brightness, adaptive state and ambient validity. The flyout and full app provide a debounced 1–100 slider plus an adaptive toggle only when Android reports control access. Slider movement preserves the phone's current adaptive setting; the toggle changes the mode separately. Covered or unavailable light is shown as a status and is not converted into a laptop brightness value in this stage.
+The shared view model exposes phone brightness, adaptive state and ambient validity. The flyout and full app provide a debounced 1–100 slider plus an adaptive toggle only when Android reports control access. Slider movement preserves the phone's current adaptive setting; the toggle changes the mode separately.
+
+On integrated displays that expose `WmiMonitorBrightness`, Windows also offers session-only **Laptop auto brightness**. It is off at launch. Valid phone lux is smoothed and mapped through a laptop-specific logarithmic curve with a three-point hysteresis threshold, a minimum target hold and three-point transition steps. Covered or unavailable readings hold the last applied value. Disconnection, switch-off and application exit call `WmiRevertToPolicyBrightness` so Windows resumes its normal power-policy control. Unsupported displays show the control as unavailable; external DDC/CI monitors are outside this MVP slice.
 
 ## UI review performed
 

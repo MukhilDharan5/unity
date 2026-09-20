@@ -290,6 +290,20 @@
                                                 <TextBlock Text="{Binding PhoneBrightnessAccessText}" Style="{StaticResource Caption}" Margin="0,8,0,0" />
                                             </StackPanel>
                                         </Border>
+                                        <TextBlock Text="Laptop brightness" Style="{StaticResource SectionHeading}" />
+                                        <Border Style="{StaticResource SettingRow}" Margin="0,0,0,28">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                <TextBlock Text="&#xE706;" Style="{StaticResource Glyph}" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
+                                                    <TextBlock Text="Use phone light sensor" Style="{StaticResource SettingTitle}" />
+                                                    <TextBlock Text="{Binding LaptopAdaptiveStatus}" Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                                                </StackPanel>
+                                                <Button Grid.Column="2" Style="{StaticResource SyncSwitch}" Tag="{Binding IsLaptopAdaptive}"
+                                                        Command="{Binding ToggleLaptopAdaptive}" IsEnabled="{Binding CanUseLaptopAdaptive}"
+                                                        ToolTip="{Binding LaptopAdaptiveAction}" AutomationProperties.Name="{Binding LaptopAdaptiveAction}" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
                                         <TextBlock Text="Clipboard" Style="{StaticResource SectionHeading}" />
                                         <Border Style="{StaticResource SettingRow}">
                                             <Grid>

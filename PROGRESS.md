@@ -1,6 +1,6 @@
 # Project progress and resume log
 
-Last updated: 19 September 2026. **MVP feature work is continuing on the isolated encrypted v1 channel.** Automatic authenticated LAN discovery, reconnect, Android access state, portable builds and typed timing policy are complete. Detailed diagnostics and broad validation are deferred.
+Last updated: 20 September 2026. **MVP feature work is continuing on the isolated encrypted v1 channel.** Automatic authenticated LAN discovery, reconnect, Android access state, phone sensors and opt-in laptop adaptive brightness are complete. Detailed diagnostics and broad validation are deferred.
 
 ## Current instructions
 
@@ -217,8 +217,16 @@ The user explicitly approved the new brightness protocol state and Android speci
 
 Windows now shows phone brightness, ambient lux/covered status and adaptive state in the full app and flyout. Its slider is debounced, preserves adaptive mode and is disabled until Android reports control access; the adaptive toggle is separate. Percentage conversion round-trips through Android's 0–255 setting scale. No laptop brightness automation was added. Windows Release compilation passed with 0 warnings/errors and Android Kotlin emitted the new controller/UI/protocol classes. Sensor behavior, settings access and OEM brightness response remain for device testing; broad tests are deferred.
 
+### 20 September 2026 — Shared adaptive laptop brightness implemented
+
+The user approved Stage 12 and requested MVP pacing. Windows now detects integrated displays through `WmiMonitorBrightness` and exposes an opt-in, session-only **Laptop auto brightness** switch in both the full app and tray flyout. Valid filtered phone lux feeds an independent logarithmic laptop curve. Additional smoothing, a three-percentage-point hysteresis threshold, a 1.5-second minimum target hold and three-point transition steps reduce visible oscillation. Covered or unavailable sensor state holds the last applied level.
+
+The controller is off at every launch, ignores sample data, and reports unsupported hardware or runtime failure in the UI. Turning it off, losing the real phone connection or exiting the application releases the override with `WmiRevertToPolicyBrightness`, returning control to Windows power policy. It uses Microsoft's `System.Management` package and makes no Android permission, protocol or persistence change. External DDC/CI monitors are outside this MVP implementation.
+
+Minimal verification per the current instruction: the focused Windows Release build passed with 0 warnings/errors. The first solution restore reached the blocked online NuGet vulnerability endpoint; a focused restore with auditing disabled used the already-cached package and succeeded. Hardware response, brightness comfort tuning, UI rendering and broader tests remain deferred.
+
 ## Next concrete resume action
 
-Continue the remaining MVP user-facing feature work on the current isolated v1 channel. Media direction, optional scrcpy launch and phone brightness/sensors are approved and implemented. Ask directly before laptop adaptive-brightness automation, any new Android permission, additional wire field, persistence format, hotspot/headphone control or audio transport.
+Stage 12 is complete. The next planned feature is Stage 13 Bluetooth headphone handoff. Start with a bounded public-API/OEM feasibility and provider-boundary slice, then ask directly before adding any Android permission, Shizuku/ADB path, accessibility automation, protocol field or persistence format.
 
 Do not repeat Stage 0 or migrate TLS/WinUI without a new explicit decision. Preserve the Windows UI and Android root build/helper edits. The user authorized the repository snapshot and GitHub push recorded above.

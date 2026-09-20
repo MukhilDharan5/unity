@@ -7,6 +7,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using PhoneCompanion.Core.Models;
 using PhoneCompanion.Core.State;
+using PhoneCompanion.Windows.Brightness;
 using PhoneCompanion.Windows.Clipboard;
 
 namespace PhoneCompanion.Windows.ViewModels;
@@ -17,6 +18,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     private readonly Dispatcher _dispatcher;
     private readonly ClipboardSyncCoordinator? _clipboard;
     private readonly Func<string?>? _openPhone;
+    private readonly LaptopAdaptiveBrightnessController? _laptopBrightness;
     private PhoneState _state;
     private bool _busy;
     private bool _disposed;
@@ -24,9 +26,10 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     private int? _pendingPhoneBrightness;
     private CancellationTokenSource? _brightnessDebounce;
     public PhoneViewModel(PhoneStateManager manager, Dispatcher dispatcher, ClipboardSyncCoordinator? clipboard = null,
-        Func<string?>? openPhone = null)
+        Func<string?>? openPhone = null, LaptopAdaptiveBrightnessController? laptopBrightness = null)
     {
-        _manager = manager; _dispatcher = dispatcher; _clipboard = clipboard; _openPhone = openPhone; _state = manager.Current;
+        _manager = manager; _dispatcher = dispatcher; _clipboard = clipboard; _openPhone = openPhone;
+        _laptopBrightness = laptopBrightness; _state = manager.Current;
         Previous = new AsyncCommand(() => SendAsync(MediaCommand.PreviousTrack), () => CanControl && _state.Media?.Capabilities.PreviousTrack == true);
         PlayPause = new AsyncCommand(() => SendAsync(MediaCommand.PlayPause), () => CanControl && _state.Media?.Capabilities.PlayPause == true);
         Next = new AsyncCommand(() => SendAsync(MediaCommand.NextTrack), () => CanControl && _state.Media?.Capabilities.NextTrack == true);
@@ -34,7 +37,9 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         ToggleClipboard = new AsyncCommand(ToggleClipboardAsync, () => !_busy && _clipboard is not null);
         OpenPhone = new AsyncCommand(OpenPhoneAsync, () => !_busy && _openPhone is not null);
         TogglePhoneAdaptive = new AsyncCommand(TogglePhoneAdaptiveAsync, () => !_busy && CanControlPhoneBrightness);
+        ToggleLaptopAdaptive = new AsyncCommand(ToggleLaptopAdaptiveAsync, () => !_busy && CanUseLaptopAdaptive);
         manager.StateChanged += OnStateChanged;
+        if (_laptopBrightness is not null) _laptopBrightness.Changed += OnLaptopBrightnessChanged;
         if (_clipboard is not null)
         {
             _clipboard.Changed += OnClipboardChanged;
@@ -49,6 +54,7 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
     public AsyncCommand ToggleClipboard { get; }
     public AsyncCommand OpenPhone { get; }
     public AsyncCommand TogglePhoneAdaptive { get; }
+    public AsyncCommand ToggleLaptopAdaptive { get; }
     public bool IsConnected => _state.Connection == ConnectionState.Connected;
     public bool IsDemo => _state.IsDemo;
     public bool HasMedia => _state.Media?.IsPlaying == true;
@@ -101,6 +107,11 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         { AmbientStatus: AmbientLightStatus.Unavailable } => "Ambient light sensor unavailable",
         _ => "Ambient light unavailable"
     };
+    public bool CanUseLaptopAdaptive => _laptopBrightness?.IsSupported == true;
+    public bool IsLaptopAdaptive => _laptopBrightness?.Enabled == true;
+    public string LaptopAdaptiveState => IsLaptopAdaptive ? "On" : "Off";
+    public string LaptopAdaptiveAction => IsLaptopAdaptive ? "Turn laptop adaptive brightness off" : "Turn laptop adaptive brightness on";
+    public string LaptopAdaptiveStatus => _laptopBrightness?.Status ?? "Laptop brightness control unavailable";
     public string ConnectionSummary => IsDemo ? "Sample data preview" : _state.Connection switch
     {
         ConnectionState.Connected => "Your phone is available",
@@ -252,6 +263,17 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         }
         finally { _busy = false; Refresh(); }
     }
+    private Task ToggleLaptopAdaptiveAsync()
+    {
+        _laptopBrightness?.SetEnabled(!IsLaptopAdaptive);
+        Refresh();
+        return Task.CompletedTask;
+    }
+    private void OnLaptopBrightnessChanged()
+    {
+        if (_disposed || _dispatcher.HasShutdownStarted) return;
+        _dispatcher.BeginInvoke(Refresh);
+    }
     private void OnClipboardChanged()
     {
         if (_disposed || _dispatcher.HasShutdownStarted) return;
@@ -267,12 +289,14 @@ public sealed class PhoneViewModel : INotifyPropertyChanged, IDisposable
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
         Previous.Refresh(); PlayPause.Refresh(); Next.Refresh(); ToggleDndRule.Refresh(); ToggleClipboard.Refresh();
         OpenPhone.Refresh(); TogglePhoneAdaptive.Refresh();
+        ToggleLaptopAdaptive.Refresh();
     }
     public void Dispose()
     {
         _disposed = true;
         _brightnessDebounce?.Cancel(); _brightnessDebounce?.Dispose(); _brightnessDebounce = null;
         _manager.StateChanged -= OnStateChanged;
+        if (_laptopBrightness is not null) _laptopBrightness.Changed -= OnLaptopBrightnessChanged;
         if (_clipboard is not null)
         {
             _clipboard.Changed -= OnClipboardChanged;

@@ -1,6 +1,6 @@
 # Phone Companion
 
-The [progress and resume log](PROGRESS.md) records the current MVP checkpoint: automatic LAN discovery, reconnect/lifecycle coordination, live phone status, bidirectional media control, optional scrcpy launch, phone brightness/light sensing, explicit Android access state, portable Android builds and typed connection policy are implemented. Work is proceeding implementation-first with minimal compile checks; broad validation is deferred. The [Stage 0 audit](CURRENT_STATE.md) is the historical assessment. The current encrypted v1 channel is the accepted interim MVP direction; any compatibility-changing security migration remains a separate post-MVP decision.
+The [progress and resume log](PROGRESS.md) records the current MVP checkpoint: automatic LAN discovery, reconnect/lifecycle coordination, live phone status, bidirectional media control, optional scrcpy launch, phone brightness/light sensing, opt-in laptop adaptive brightness, explicit Android access state, portable Android builds and typed connection policy are implemented. Work is proceeding implementation-first with minimal compile checks; broad validation is deferred. The [Stage 0 audit](CURRENT_STATE.md) is the historical assessment. The current encrypted v1 channel is the accepted interim MVP direction; any compatibility-changing security migration remains a separate post-MVP decision.
 
 A Windows desktop control app with a compact tray flyout and an Android companion. The two apps pair over BLE or Wi-Fi/LAN, verify a six-digit code, remember the approved device identity, and protect every application message with an authenticated encrypted session.
 
@@ -15,7 +15,7 @@ The verified Windows release is available as `artifacts/PhoneCompanion-Windows.z
 
 Launch `PhoneCompanion.exe` to open the desktop dashboard, or use `--demo` for sample data. Use `--tray` to start quietly in the tray, or `--flyout` to show quick controls. Click the blue phone tray icon to open or dismiss the flyout. If Windows places it in the overflow area, open the tray's up-arrow menu. Choose **Connect phone** to pair. Starting the app again opens the existing desktop window. Closing the desktop window hides it to the tray; **Open Unity Connect** restores it, and **Exit** in the tray menu quits the application.
 
-The resizable desktop window provides Phone and Connection pages for the same existing controls and state as the flyout. Both views share one phone session and follow the system light/dark theme. The dashboard follows a Windows Settings layout: a compact icon rail, battery/network/connection summaries, grouped setting rows, neutral gray surfaces, and light-blue accents. Its native title bar, pairing dialog, and tray menu also follow the system theme. No laptop hardware controls or system-monitor features are added.
+The resizable desktop window provides Phone and Connection pages for the same existing controls and state as the flyout. Both views share one phone session and follow the system light/dark theme. The dashboard follows a Windows Settings layout: a compact icon rail, battery/network/connection summaries, grouped setting rows, neutral gray surfaces, and light-blue accents. Its native title bar, pairing dialog, and tray menu also follow the system theme. On supported integrated displays, an opt-in switch can use the phone's filtered light reading to adjust laptop brightness for the current app session.
 
 The sample is explicitly labeled **Sample** and **Sample data · No phone connected**. Previous/next cycle through three fictional sample tracks; play/pause changes sample playback. These controls use the same codec and state manager as the BLE and Wi-Fi paths. No sample values are presented as real phone data. The sample choice is not persisted.
 
@@ -29,7 +29,7 @@ Install the .NET 10 SDK, then run:
 .\scripts\build.ps1
 ```
 
-The script restores, builds Release with warnings treated as errors, runs the core checks and Windows UI smoke checks, then publishes to `artifacts/PhoneCompanion`. It puts CLI/cache files under `artifacts/dotnet-home`. There are no third-party application or test libraries. Windows WinRT APIs use Microsoft's pinned `Microsoft.Windows.SDK.NET.Ref` targeting pack, version `10.0.26100.57`.
+The script restores, builds Release with warnings treated as errors, runs the core checks and Windows UI smoke checks, then publishes to `artifacts/PhoneCompanion`. It puts CLI/cache files under `artifacts/dotnet-home`. Windows uses Microsoft's `System.Management` package for integrated-display brightness and the pinned `Microsoft.Windows.SDK.NET.Ref` targeting pack, version `10.0.26100.57`; there are no third-party application or test libraries.
 
 For an offline machine with the targeting pack's `.nupkg` cached locally:
 
@@ -55,7 +55,7 @@ UI checks instantiate the actual XAML, view model and tray controller, exercise 
 | Previous / play-pause / next | Capability-gated live commands plus working sample provider |
 | Windows media on Android | Current Windows media source/title/artist/playback and capability-gated controls |
 | Open phone | Launches a detected scrcpy installation without using ADB as the companion transport |
-| Brightness and light | Reports phone brightness/adaptive state and filtered ambient light; optional remote brightness control |
+| Brightness and light | Reports and controls phone brightness; optionally maps valid phone ambient light to supported laptop displays with smoothing, hysteresis and bounded transitions |
 | Companion DND | App-owned Android `AutomaticZenRule`; Windows control never changes manual/global DND directly |
 | Clipboard | Opt-in new-text sync, 12 KiB limit, loop suppression, no stored history; Android sends only on a visible user action |
 | Message layer | JSON v1 behind `IPhoneMessageCodec`; authenticated encryption and replay rejection below it |

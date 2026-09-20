@@ -16,6 +16,7 @@ Status: observed implementation, 17 September 2026. “Implemented” means code
 | Screen/control | Optional scrcpy launcher on Windows | Local executable and Android debugging authorization | No bundled executable or automated wireless-debugging setup |
 | OEM laptop profile | Absent | None | Requires provider discovery and hardware research |
 | Brightness/ambient/pocket | Android -> Windows state; Windows -> Android control | Special Android settings access for control; light/proximity sensor availability | Device filtering, pocket classification and OEM brightness behavior need validation |
+| Laptop adaptive brightness | Phone ambient light -> Windows integrated display, opt-in per app session | Valid non-demo phone state plus `WmiMonitorBrightness` support | Laptop-panel comfort/power validation; external DDC/CI monitors are not supported |
 | Headphone handoff/hotspot/audio | Absent | None | Public/OEM/optional privileged feasibility unresolved |
 | PC activity/lock/unlock | Absent | None | Privacy policy; lock safeguards; separate unlock security project |
 

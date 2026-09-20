@@ -215,6 +215,18 @@
                             Value="{Binding PhoneBrightnessLevel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                             IsEnabled="{Binding CanControlPhoneBrightness}" AutomationProperties.Name="Phone brightness" />
                 </StackPanel>
+                <Border Height="1" Background="{DynamicResource Border}" Margin="0,14,0,14" />
+                <Grid Margin="1,0,1,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="&#xE706;" Style="{StaticResource Glyph}" FontSize="16" HorizontalAlignment="Left" />
+                    <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                        <TextBlock Text="Laptop auto brightness" />
+                        <TextBlock Text="{Binding LaptopAdaptiveStatus}" Foreground="{DynamicResource SecondaryText}" FontSize="9" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Button Grid.Column="2" Style="{StaticResource TogglePill}" Content="{Binding LaptopAdaptiveState}"
+                            Tag="{Binding IsLaptopAdaptive}" Command="{Binding ToggleLaptopAdaptive}" IsEnabled="{Binding CanUseLaptopAdaptive}"
+                            ToolTip="{Binding LaptopAdaptiveAction}" AutomationProperties.Name="{Binding LaptopAdaptiveAction}" />
+                </Grid>
                 <TextBlock Text="{Binding Footer}" TextWrapping="Wrap" TextAlignment="Center"
                            Foreground="{DynamicResource SecondaryText}" FontSize="10" Margin="0,24,0,0"
                            AutomationProperties.LiveSetting="Polite" />

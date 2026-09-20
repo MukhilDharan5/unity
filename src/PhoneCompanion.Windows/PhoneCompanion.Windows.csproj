@@ -13,5 +13,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../PhoneCompanion.Core/PhoneCompanion.Core.csproj" />
+    <PackageReference Include="System.Management" Version="10.0.3" />
   </ItemGroup>
 </Project>

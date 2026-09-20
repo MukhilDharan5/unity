@@ -29,8 +29,8 @@ Constraints: Android foreground/background policy and clipboard privacy, optiona
 | 8 — Clipboard | Harden opt-in, remote availability, privacy/route policy and immediate disable; preserve Android manual send constraint | History/filtering require separately scoped contract/privacy decisions |
 | 9 — OEM profiles | Discover generic/Lenovo providers and expose actual available modes | No fake mapping to ordinary power plans; supported hardware evidence |
 | 10 — Open phone (launcher implemented) | Capability-detected scrcpy launch is available from Windows UI/tray | Executable distribution and wireless-debugging authorization setup remain; ADB stays optional and outside companion state |
-| 11 — Brightness/sensors (MVP implemented, validation deferred) | Android brightness state/control, filtered ambient lux and simple covered detection now feed Windows UI | Physical sensor/OEM validation remains; no laptop brightness automation yet |
-| 12 — Shared adaptive brightness | Independent laptop lux mapping, smoothing/hysteresis/hold/transition limits | Hold last valid brightness on invalid readings; hardware comfort/power tests |
+| 11 — Brightness/sensors (MVP implemented, validation deferred) | Android brightness state/control, filtered ambient lux and simple covered detection now feed Windows UI | Physical sensor/OEM validation remains |
+| 12 — Shared adaptive brightness (MVP implemented, validation deferred) | Opt-in WMI laptop brightness, independent logarithmic lux mapping, smoothing/hysteresis/hold/transition limits and Windows policy restore | Integrated laptop panels only; hardware comfort/power tests remain |
 | 13 — Headphone handoff | Research public/OEM routes, optional enhanced providers and graceful fallback | No unsupported disconnect promises or premature accessibility automation |
 | 14 — Phone internet | Supported/user-assisted tethering request and saved-network workflow | Local-only hotspot is not tethering; no assumed Samsung routine API |
 | 15 — Audio | Prototype supported playback/loopback capture after stable transport; measure latency/battery | DRM/capture/call limitations and consent must be explicit |
