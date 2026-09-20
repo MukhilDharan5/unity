@@ -20,6 +20,7 @@ public partial class PairingWindow : Window
     public PairingWindow(PhoneStateManager manager, IdentityAndTrustStore store)
     {
         InitializeComponent(); _manager = manager; _store = store;
+        SourceInitialized += (_, _) => WindowsWindowStyling.Apply(this);
         var trusted = store.Load();
         if (trusted?.WifiEndpoint is not null) Endpoint.Text = trusted.WifiEndpoint;
         ForgetButton.Visibility = trusted is null ? Visibility.Collapsed : Visibility.Visible;

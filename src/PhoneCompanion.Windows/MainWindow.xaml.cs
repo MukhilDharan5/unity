@@ -1,8 +1,6 @@
 using System.ComponentModel;
 using System;
-using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Interop;
 using Microsoft.Win32;
 
 namespace PhoneCompanion.Windows;
@@ -49,20 +47,10 @@ public partial class MainWindow : Window
     {
         if (!Dispatcher.HasShutdownStarted) Dispatcher.BeginInvoke(ApplyWindowTheme);
     }
-    private void ApplyWindowTheme()
-    {
-        var handle = new WindowInteropHelper(this).Handle;
-        var dark = SystemThemeService.ReadSystemTheme() == AppTheme.Dark ? 1 : 0;
-        DwmSetWindowAttribute(handle, 20, ref dark, sizeof(int));
-        var caption = dark == 1 ? 0x00202020 : 0x00F3F3F3;
-        DwmSetWindowAttribute(handle, 35, ref caption, sizeof(int));
-        var corners = 2;
-        DwmSetWindowAttribute(handle, 33, ref corners, sizeof(int));
-    }
+    private void ApplyWindowTheme() => WindowsWindowStyling.Apply(this);
     protected override void OnClosed(EventArgs e)
     {
         if (_themeSubscribed) SystemEvents.UserPreferenceChanged -= OnSystemThemeChanged;
         base.OnClosed(e);
     }
-    [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 }

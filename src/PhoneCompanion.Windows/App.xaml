@@ -4,23 +4,28 @@
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
         <!-- Light defaults prevent an unstyled frame before SystemThemeService applies Windows' theme. -->
-        <SolidColorBrush x:Key="WindowBackground" Color="#FFFFFFFF" />
-        <SolidColorBrush x:Key="SurfaceBackground" Color="#FFFBFBFB" />
-        <SolidColorBrush x:Key="SubtleBackground" Color="#FFF5F5F5" />
-        <SolidColorBrush x:Key="PrimaryText" Color="#FF0A0A0B" />
-        <SolidColorBrush x:Key="SecondaryText" Color="#FF606060" />
-        <SolidColorBrush x:Key="Accent" Color="#FF75C6FF" />
-        <SolidColorBrush x:Key="AccentText" Color="#FF0A0A0B" />
-        <SolidColorBrush x:Key="AccentSurface" Color="#FFDDF1FF" />
-        <SolidColorBrush x:Key="Border" Color="#FFE5E5E5" />
-        <SolidColorBrush x:Key="Icon" Color="#FF25282B" />
-        <SolidColorBrush x:Key="Disabled" Color="#FFADB5BC" />
+        <SolidColorBrush x:Key="WindowBackground" Color="#FFF3F3F3" />
+        <SolidColorBrush x:Key="SurfaceBackground" Color="#FFF9F9F9" />
+        <SolidColorBrush x:Key="SubtleBackground" Color="#0A000000" />
+        <SolidColorBrush x:Key="PrimaryText" Color="#FF1A1A1A" />
+        <SolidColorBrush x:Key="SecondaryText" Color="#FF5D5D5D" />
+        <SolidColorBrush x:Key="Accent" Color="#FF0067C0" />
+        <SolidColorBrush x:Key="AccentText" Color="#FFFFFFFF" />
+        <SolidColorBrush x:Key="AccentSurface" Color="#1F0067C0" />
+        <SolidColorBrush x:Key="Border" Color="#16000000" />
+        <SolidColorBrush x:Key="CardStroke" Color="#19000000" />
+        <SolidColorBrush x:Key="ControlStroke" Color="#26000000" />
+        <SolidColorBrush x:Key="ControlFill" Color="#B3FFFFFF" />
+        <SolidColorBrush x:Key="ControlHover" Color="#0F000000" />
+        <SolidColorBrush x:Key="ControlPressed" Color="#18000000" />
+        <SolidColorBrush x:Key="Icon" Color="#FF202020" />
+        <SolidColorBrush x:Key="Disabled" Color="#FF9A9A9A" />
         <SolidColorBrush x:Key="Shadow" Color="#FF000000" />
-        <SolidColorBrush x:Key="PageBackground" Color="#FFF3F3F3" />
-        <SolidColorBrush x:Key="CardBackground" Color="#FFFBFBFB" />
+        <SolidColorBrush x:Key="PageBackground" Color="#FFF9F9F9" />
+        <SolidColorBrush x:Key="CardBackground" Color="#FFFFFFFF" />
         <SolidColorBrush x:Key="SidebarBackground" Color="#FFF3F3F3" />
-        <SolidColorBrush x:Key="AccentInk" Color="#FF29688F" />
-        <SolidColorBrush x:Key="SwitchTrack" Color="#FFFFFFFF" />
-        <SolidColorBrush x:Key="NavigationSelected" Color="#FFE7E7E7" />
+        <SolidColorBrush x:Key="AccentInk" Color="#FF005A9E" />
+        <SolidColorBrush x:Key="SwitchTrack" Color="#33000000" />
+        <SolidColorBrush x:Key="NavigationSelected" Color="#0F000000" />
     </Application.Resources>
 </Application>

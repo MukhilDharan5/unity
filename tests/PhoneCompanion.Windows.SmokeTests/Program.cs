@@ -96,7 +96,7 @@ internal static class Program
         pairing.Close();
         SystemThemeService.ApplyPalette(Application.Current.Resources, AppTheme.Light);
         await Settle();
-        Check(((SolidColorBrush)Application.Current.Resources["WindowBackground"]).Color == Colors.White, "Light palette applied");
+        Check(((SolidColorBrush)Application.Current.Resources["WindowBackground"]).Color == Color.FromRgb(243, 243, 243), "Light palette applied");
         var controls = Descendants<Button>((DependencyObject)flyout.Content).ToArray();
         Check(controls.Count(b => ReferenceEquals(b.Command, model.Previous) || ReferenceEquals(b.Command, model.PlayPause) ||
             ReferenceEquals(b.Command, model.Next)) == 3, "Exactly three media buttons are bound");

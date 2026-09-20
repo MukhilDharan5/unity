@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Phone Companion" Width="368" SizeToContent="Height" MaxHeight="640"
         WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False" Topmost="True"
-        AllowsTransparency="True" Background="Transparent" FontFamily="Segoe UI" FontSize="13"
+        AllowsTransparency="True" Background="Transparent" FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13"
         Foreground="{DynamicResource PrimaryText}" UseLayoutRounding="True" SnapsToDevicePixels="True"
         Deactivated="OnDeactivated" PreviewKeyDown="OnPreviewKeyDown">
     <Window.Resources>
@@ -69,10 +69,10 @@
         </Style>
         </ResourceDictionary>
     </Window.Resources>
-    <Border Margin="8" Background="{DynamicResource WindowBackground}" CornerRadius="18"
-            BorderBrush="{DynamicResource Border}" BorderThickness="1">
+    <Border Margin="8" Background="{DynamicResource SurfaceBackground}" CornerRadius="20"
+            BorderBrush="{DynamicResource CardStroke}" BorderThickness="1">
         <Border.Effect>
-            <DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.28" Color="#000000" />
+            <DropShadowEffect BlurRadius="24" ShadowDepth="4" Opacity="0.22" Color="#000000" />
         </Border.Effect>
         <ScrollViewer Style="{StaticResource CleanScrollViewer}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Margin="23,22,23,19">
@@ -116,8 +116,8 @@
                         Padding="12,7" Margin="0,12,0,0" Command="{Binding UsePhoneInternet}"
                         ToolTip="{Binding PhoneInternetDetail}" AutomationProperties.Name="Use phone internet" />
 
-                <Border x:Name="MediaCard" CornerRadius="13" Background="{DynamicResource SurfaceBackground}"
-                        BorderBrush="{DynamicResource Border}" BorderThickness="1" Padding="19,17,19,14" Margin="0,19,0,0">
+                <Border x:Name="MediaCard" CornerRadius="12" Background="{DynamicResource CardBackground}"
+                        BorderBrush="{DynamicResource CardStroke}" BorderThickness="1" Padding="19,17,19,14" Margin="0,19,0,0">
                     <StackPanel>
                         <Grid Margin="0,0,0,13">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>

@@ -63,44 +63,46 @@ public sealed class SystemThemeService : IDisposable
             ? new Dictionary<string, string>
             {
                 ["WindowBackground"] = "#FF202020",
-                ["SurfaceBackground"] = "#FF323232",
-                ["SubtleBackground"] = "#FF3B3B3B",
-                ["PrimaryText"] = "#FFF5F5F5",
-                ["SecondaryText"] = "#FFCCCCCC",
-                ["Accent"] = "#FF75C6FF",
-                ["AccentText"] = "#FF071017",
-                ["AccentSurface"] = "#FF243D4D",
-                ["Border"] = "#FF3D3D3D",
-                ["Icon"] = "#FFF5F5F5",
-                ["Disabled"] = "#FF808080",
+                ["SurfaceBackground"] = "#FF2C2C2C",
+                ["SubtleBackground"] = "#12FFFFFF",
+                ["PrimaryText"] = "#FFFFFFFF",
+                ["SecondaryText"] = "#FFC7C7C7",
+                ["Border"] = "#18FFFFFF",
+                ["CardStroke"] = "#20FFFFFF",
+                ["ControlStroke"] = "#30FFFFFF",
+                ["ControlFill"] = "#14FFFFFF",
+                ["ControlHover"] = "#12FFFFFF",
+                ["ControlPressed"] = "#1CFFFFFF",
+                ["Icon"] = "#FFF2F2F2",
+                ["Disabled"] = "#FF858585",
                 ["Shadow"] = "#FF000000",
-                ["PageBackground"] = "#FF272727",
-                ["CardBackground"] = "#FF323232",
+                ["PageBackground"] = "#FF1C1C1C",
+                ["CardBackground"] = "#FF2B2B2B",
                 ["SidebarBackground"] = "#FF202020",
-                ["AccentInk"] = "#FF95D1FF",
-                ["SwitchTrack"] = "#FF454545",
-                ["NavigationSelected"] = "#FF2D2D2D"
+                ["SwitchTrack"] = "#38FFFFFF",
+                ["NavigationSelected"] = "#14FFFFFF"
             }
             : new Dictionary<string, string>
             {
-                ["WindowBackground"] = "#FFFFFFFF",
-                ["SurfaceBackground"] = "#FFFBFBFB",
-                ["SubtleBackground"] = "#FFF5F5F5",
-                ["PrimaryText"] = "#FF0A0A0B",
-                ["SecondaryText"] = "#FF606060",
-                ["Accent"] = "#FF75C6FF",
-                ["AccentText"] = "#FF0A0A0B",
-                ["AccentSurface"] = "#FFDDF1FF",
-                ["Border"] = "#FFE5E5E5",
-                ["Icon"] = "#FF25282B",
-                ["Disabled"] = "#FFADB5BC",
+                ["WindowBackground"] = "#FFF3F3F3",
+                ["SurfaceBackground"] = "#FFF9F9F9",
+                ["SubtleBackground"] = "#0A000000",
+                ["PrimaryText"] = "#FF1A1A1A",
+                ["SecondaryText"] = "#FF5D5D5D",
+                ["Border"] = "#16000000",
+                ["CardStroke"] = "#19000000",
+                ["ControlStroke"] = "#26000000",
+                ["ControlFill"] = "#B3FFFFFF",
+                ["ControlHover"] = "#0F000000",
+                ["ControlPressed"] = "#18000000",
+                ["Icon"] = "#FF202020",
+                ["Disabled"] = "#FF9A9A9A",
                 ["Shadow"] = "#FF000000",
-                ["PageBackground"] = "#FFF3F3F3",
-                ["CardBackground"] = "#FFFBFBFB",
+                ["PageBackground"] = "#FFF9F9F9",
+                ["CardBackground"] = "#FFFFFFFF",
                 ["SidebarBackground"] = "#FFF3F3F3",
-                ["AccentInk"] = "#FF29688F",
-                ["SwitchTrack"] = "#FFFFFFFF",
-                ["NavigationSelected"] = "#FFE7E7E7"
+                ["SwitchTrack"] = "#33000000",
+                ["NavigationSelected"] = "#0F000000"
             };
 
         foreach (var (key, value) in colors)
@@ -109,6 +111,38 @@ public sealed class SystemThemeService : IDisposable
             brush.Freeze();
             resources[key] = brush;
         }
+
+        var accent = SystemParameters.WindowGlassColor;
+        if (accent.A < 96) accent = Color.FromRgb(0, 103, 192);
+        accent.A = 255;
+        SetBrush(resources, "Accent", accent);
+        SetBrush(resources, "AccentText", RelativeLuminance(accent) > 0.48 ? Colors.Black : Colors.White);
+        SetBrush(resources, "AccentInk", Blend(accent, theme == AppTheme.Dark ? Colors.White : Colors.Black,
+            theme == AppTheme.Dark ? 0.28 : 0.12));
+        SetBrush(resources, "AccentSurface", Color.FromArgb(theme == AppTheme.Dark ? (byte)54 : (byte)31,
+            accent.R, accent.G, accent.B));
+    }
+
+    private static void SetBrush(ResourceDictionary resources, string key, Color color)
+    {
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        resources[key] = brush;
+    }
+
+    private static Color Blend(Color source, Color target, double amount) => Color.FromRgb(
+        (byte)Math.Round(source.R + (target.R - source.R) * amount),
+        (byte)Math.Round(source.G + (target.G - source.G) * amount),
+        (byte)Math.Round(source.B + (target.B - source.B) * amount));
+
+    private static double RelativeLuminance(Color color)
+    {
+        static double Channel(byte value)
+        {
+            var linear = value / 255d;
+            return linear <= 0.03928 ? linear / 12.92 : Math.Pow((linear + 0.055) / 1.055, 2.4);
+        }
+        return 0.2126 * Channel(color.R) + 0.7152 * Channel(color.G) + 0.0722 * Channel(color.B);
     }
 
     public void Dispose()

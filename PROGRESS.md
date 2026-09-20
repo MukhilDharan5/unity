@@ -297,6 +297,14 @@ Android now renders the complete companion-control area before pairing and while
 
 This is a presentation change for existing MVP features. It does not add protocol messages, permissions or new platform capabilities. The focused Windows Release build passed with 0 warnings/errors, and Android `:app:compileDebugKotlin --offline --no-daemon` passed. Broad UI rendering and physical-device validation remain deferred.
 
+### 20 September 2026 — Windows 11 visual modernization pass
+
+The Windows WPF shell was modernized in place without changing the UI framework or feature architecture. The full app now uses a wider Windows Settings-style navigation pane with app identity, horizontal navigation rows and a compact connection/tray status surface. The content area uses layered rounded surfaces, Fluent spacing and Segoe UI Variable. Shared buttons, media buttons, toggles, sliders, tooltips, cards and scrollbars now use consistent Windows 11 proportions and hover, pressed, focus and disabled states. The flyout and pairing dialog share the updated visual resources.
+
+`SystemThemeService` now derives the accent, contrast text and tinted accent surfaces from the current Windows accent color while continuing to follow light/dark preference changes. A shared native-window helper requests Windows 11 rounded corners, matching caption/text colors and the DWM main-window system backdrop for the dashboard and pairing dialog, with the normal opaque palette serving as the fallback when an attribute is unsupported.
+
+No feature, protocol, permission, transport or persistence behavior changed. The focused Windows Release build passed with 0 warnings/errors. Broad UI smoke rendering, DPI/high-contrast inspection and hardware display validation remain deferred under the MVP pacing decision. ADR-004 remains open for any future WinUI 3 migration; this pass does not make that architectural change.
+
 ## Next concrete resume action
 
 The master feature sequence is implemented through Stage 16 at MVP scope, with remote unlock intentionally excluded. The next practical coding step is release packaging and install/update polish, followed later by the deferred physical-device shakeout. Stage 9 OEM performance profiles also remains unimplemented and should start with provider feasibility rather than a fake mapping to Windows power plans.
